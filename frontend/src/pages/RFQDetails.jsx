@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
@@ -28,10 +28,12 @@ export default function RFQDetails() {
   const { data: rfq, isLoading } = useQuery({
     queryKey: ['admin-rfq', id],
     queryFn: () => api.get(`/admin/rfqs/${id}`).then((r) => r.data),
-    onSuccess: (data) => {
-      if (notes === null) setNotes(data.internal_notes || '')
-    },
   })
+
+  // Initialize notes when data loads
+  useEffect(() => {
+    if (rfq && notes === null) setNotes(rfq.internal_notes || '')
+  }, [rfq])
 
   const updateStatus = useMutation({
     mutationFn: (status) => api.patch(`/admin/rfqs/${id}/status`, { status }),
@@ -213,30 +215,86 @@ export default function RFQDetails() {
 
             {/* Attachments */}
             {rfq.attachments?.length > 0 && (
-              <section className="bg-surface-container-low rounded-xl p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="material-symbols-outlined text-primary">description</span>
-                  <h3 className="font-headline font-bold text-on-surface">Documents & Attachments</h3>
+              <section className="bg-surface-container-low rounded-xl overflow-hidden">
+                <div className="p-5 border-b border-white/20 bg-white/40 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-primary">attach_file</span>
+                    <h3 className="font-headline font-bold text-on-surface">Submitted Documents</h3>
+                  </div>
+                  <span className="text-xs text-outline">{rfq.attachments.length} file{rfq.attachments.length !== 1 ? 's' : ''}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {rfq.attachments.map((file) => (
-                    <a
-                      key={file.id}
-                      href={file.file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-3 p-3 bg-white/60 rounded-lg hover:bg-white transition-colors cursor-pointer group"
-                    >
-                      <div className="w-10 h-10 rounded bg-red-50 flex items-center justify-center text-red-600 flex-shrink-0">
-                        <span className="material-symbols-outlined">picture_as_pdf</span>
+                <div className="p-5 space-y-3">
+                  {rfq.attachments.map((file) => {
+                    const isImage = file.mime_type?.startsWith('image/')
+                    const isPDF = file.mime_type === 'application/pdf'
+                    const fileUrl = file.file_url.startsWith('http') ? file.file_url : `http://localhost:5000${file.file_url}`
+
+                    return (
+                      <div key={file.id} className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/10">
+                        {/* Image preview */}
+                        {isImage && (
+                          <div className="w-full max-h-64 overflow-hidden bg-surface-container">
+                            <img
+                              src={fileUrl}
+                              alt={file.file_name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => { e.target.style.display = 'none' }}
+                            />
+                          </div>
+                        )}
+
+                        {/* File info row */}
+                        <div className="flex items-center gap-3 p-4">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            isPDF ? 'bg-red-50 text-red-600' :
+                            isImage ? 'bg-blue-50 text-blue-600' :
+                            'bg-surface-container text-outline'
+                          }`}>
+                            <span className="material-symbols-outlined text-lg">
+                              {isPDF ? 'picture_as_pdf' : isImage ? 'image' : 'description'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-on-surface truncate">{file.file_name}</p>
+                            <p className="text-[10px] text-outline">
+                              {(file.file_size / 1024).toFixed(0)} KB · {file.mime_type}
+                            </p>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            {/* View in new tab */}
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container text-on-surface-variant hover:bg-primary hover:text-white transition-all text-xs font-bold"
+                            >
+                              <span className="material-symbols-outlined text-sm">open_in_new</span>
+                              View
+                            </a>
+                            {/* Download */}
+                            <a
+                              href={fileUrl}
+                              download={file.file_name}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary transition-all text-xs font-bold"
+                            >
+                              <span className="material-symbols-outlined text-sm">download</span>
+                              Download
+                            </a>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold truncate text-on-surface">{file.file_name}</p>
-                        <p className="text-[10px] text-outline">{(file.file_size / 1024).toFixed(0)} KB</p>
-                      </div>
-                      <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">download</span>
-                    </a>
-                  ))}
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* No attachments message */}
+            {rfq.attachments?.length === 0 && (
+              <section className="bg-surface-container-low rounded-xl p-5">
+                <div className="flex items-center gap-3 text-on-surface-variant">
+                  <span className="material-symbols-outlined">attach_file</span>
+                  <p className="text-sm">No documents submitted with this RFQ.</p>
                 </div>
               </section>
             )}
