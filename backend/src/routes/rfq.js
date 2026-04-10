@@ -56,7 +56,9 @@ const rfqSchema = Joi.object({
     requestedDeliveryDate: Joi.string().allow('', null),
     shippingMethod:        Joi.string().allow('', null),
     message:               Joi.string().allow('', null),
-  }).optional(),
+    attachmentNames:       Joi.array().items(Joi.string()).optional(), // UI-only field
+    attachments:           Joi.array().optional(), // persisted store field
+  }).optional().unknown(true), // allow any extra fields from the store
 })
 
 // ── Helper: is valid UUID ─────────────────────────────────────────────────────
