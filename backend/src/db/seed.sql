@@ -24,7 +24,9 @@ INSERT INTO testimonials (customer_name, company_name, comment, is_active, sort_
 ON CONFLICT DO NOTHING;
 
 -- Default admin user (password: Admin@1234)
--- bcrypt hash of "Admin@1234" with cost 12
 INSERT INTO users (email, password_hash, full_name, company_name, role) VALUES
-('admin@pharmalink.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMqJqhCangelxqnmGLosz6K2Gy', 'Admin User', 'PharmaLink Wholesale', 'admin')
-ON CONFLICT (email) DO NOTHING;
+('admin@pharmalink.com', '$2b$12$egApmlZVnnDbjblr4JYkz.IrPuQkKN2gat2S8iy8CbrSe3PdxT9y.', 'Admin User', 'PharmaLink Wholesale', 'admin')
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = '$2b$12$egApmlZVnnDbjblr4JYkz.IrPuQkKN2gat2S8iy8CbrSe3PdxT9y.',
+  role = 'admin',
+  is_active = true;

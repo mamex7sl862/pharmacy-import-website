@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
+import AdminLayout from '../components/AdminLayout'
 
 const STATUS_BADGE = {
   NEW:            'bg-blue-50 text-blue-700',

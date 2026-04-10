@@ -2,30 +2,23 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
+import AdminLayout from '../components/AdminLayout'
 
 const STATUS_BADGE = {
-  NEW: 'bg-primary-container text-white',
-  UNDER_REVIEW: 'bg-yellow-100 text-yellow-800',
-  QUOTATION_SENT: 'bg-green-100 text-green-700',
-  CLOSED: 'bg-slate-100 text-slate-500',
-}
-
-const BORDER_COLOR = {
-  NEW: 'border-primary/20',
-  UNDER_REVIEW: 'border-yellow-500/20',
-  QUOTATION_SENT: 'border-green-500/20',
-  CLOSED: 'border-slate-300',
+  NEW:            'bg-blue-50 text-blue-700',
+  UNDER_REVIEW:   'bg-yellow-50 text-yellow-700',
+  QUOTATION_SENT: 'bg-green-50 text-green-700',
+  CLOSED:         'bg-slate-100 text-slate-500',
 }
 
 export default function RFQList() {
-  const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState('')
-  const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState({ rfqNumber: '', customerName: '', status: '', dateFrom: '', dateTo: '', page: 1 })
   const qc = useQueryClient()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-rfqs', search, activeFilter, page],
-    queryFn: () => api.get('/admin/rfqs', { params: { customerName: search, status: activeFilter, page, limit: 20 } }).then((r) => r.data),
+    queryKey: ['admin-rfqs', filters],
+    queryFn: () => api.get('/admin/rfqs', { params: { ...filters, limit: 20 } }).then((r) => r.data),
+    keepPreviousData: true,
   })
 
   const updateStatus = useMutation({
@@ -33,152 +26,197 @@ export default function RFQList() {
     onSuccess: () => qc.invalidateQueries(['admin-rfqs']),
   })
 
-  const filters = [
-    { label: 'All RFQs', value: '' },
-    { label: `New Requests (${data?.items?.filter((r) => r.status === 'NEW').length || 0})`, value: 'NEW' },
-    { label: `Pending (${data?.items?.filter((r) => r.status === 'UNDER_REVIEW').length || 0})`, value: 'UNDER_REVIEW' },
-    { label: 'Archived', value: 'CLOSED' },
+  const set = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value, page: 1 }))
+
+  const STATUS_CHIPS = [
+    { label: 'All', value: '' },
+    { label: 'New', value: 'NEW' },
+    { label: 'Under Review', value: 'UNDER_REVIEW' },
+    { label: 'Quotation Sent', value: 'QUOTATION_SENT' },
+    { label: 'Closed', value: 'CLOSED' },
   ]
 
   return (
-    <div className="bg-background font-body text-on-surface antialiased overflow-x-hidden min-h-screen">
-      {/* Top bar */}
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-lg shadow-sm flex justify-between items-center px-6 h-20">
-        <div className="flex items-center gap-4">
-          <Link to="/admin" className="p-2 hover:bg-slate-100 transition-colors rounded-lg">
-            <span className="material-symbols-outlined text-primary">arrow_back</span>
-          </Link>
-          <h1 className="font-headline font-bold text-2xl tracking-tight text-primary">RFQ List</h1>
-        </div>
-        <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold text-sm">A</div>
-      </header>
+    <AdminLayout title="RFQ Management" subtitle="Review, respond to, and manage all quotation requests.">
 
-      {/* Sidebar */}
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-72 bg-slate-50 flex-col py-8 space-y-2 z-40 pt-24">
-        <div className="px-8 mb-6">
-          <h2 className="font-headline font-bold text-lg text-primary">Admin Portal</h2>
-          <p className="text-xs text-slate-500 font-medium tracking-wide">Pharma Distribution</p>
-        </div>
-        <nav className="flex flex-col space-y-1">
-          {[
-            { to: '/admin', icon: 'dashboard', label: 'Dashboard' },
-            { to: '/admin/rfqs', icon: 'request_quote', label: 'RFQ List', active: true },
-            { to: '/admin/products', icon: 'inventory_2', label: 'Inventory' },
-            { to: '/admin/settings', icon: 'settings', label: 'Settings' },
-          ].map((item) => (
-            <Link key={item.to} to={item.to} className={`flex items-center gap-4 py-3 transition-all duration-200 ${item.active ? 'bg-white text-primary font-bold rounded-l-full ml-4 pl-4 shadow-sm' : 'text-slate-500 pl-8 hover:text-primary'}`}>
-              <span className="material-symbols-outlined">{item.icon}</span>
-              <span className="font-medium text-sm">{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-      </aside>
-
-      <main className="md:ml-72 pt-24 pb-12 px-4 md:px-10 max-w-5xl mx-auto">
-        {/* Search & Filter */}
-        <section className="mb-8 space-y-4">
-          <div className="flex items-center gap-3 w-full">
-            <div className="relative flex-grow">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant opacity-60 text-lg">search</span>
-              <input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                className="w-full h-14 pl-12 pr-4 bg-surface-container-high border-none rounded-xl text-sm focus:ring-1 focus:ring-primary focus:bg-surface-container-lowest transition-all outline-none"
-                placeholder="Search by ID or Company..."
-              />
-            </div>
-            <button className="flex items-center justify-center h-14 w-14 md:w-auto md:px-6 bg-surface-container-lowest text-on-surface rounded-xl shadow-sm hover:shadow-md transition-all">
-              <span className="material-symbols-outlined md:mr-2">filter_list</span>
-              <span className="hidden md:inline font-medium text-sm">Filter</span>
-            </button>
+      {/* Filters */}
+      <div className="bg-surface-container-lowest rounded-2xl p-6 mb-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+            <input
+              type="text"
+              placeholder="RFQ number..."
+              value={filters.rfqNumber}
+              onChange={set('rfqNumber')}
+              className="w-full pl-10 pr-4 py-2.5 bg-surface-container-high border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {filters.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => { setActiveFilter(f.value); setPage(1) }}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeFilter === f.value ? 'bg-primary text-on-primary' : 'bg-secondary-container text-on-secondary-container hover:bg-surface-container-high'}`}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">person</span>
+            <input
+              type="text"
+              placeholder="Customer name..."
+              value={filters.customerName}
+              onChange={set('customerName')}
+              className="w-full pl-10 pr-4 py-2.5 bg-surface-container-high border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            />
           </div>
-        </section>
-
-        {/* RFQ Cards */}
-        <div className="grid grid-cols-1 gap-4">
-          {isLoading
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="bg-surface-container-lowest p-6 rounded-2xl animate-pulse">
-                  <div className="h-5 bg-surface-container rounded w-1/3 mb-3" />
-                  <div className="h-4 bg-surface-container rounded w-1/2" />
-                </div>
-              ))
-            : data?.items?.map((rfq) => (
-                <Link
-                  to={`/admin/rfqs/${rfq.id}`}
-                  key={rfq.id}
-                  className={`bg-surface-container-lowest p-6 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer border-l-4 ${BORDER_COLOR[rfq.status] || 'border-slate-200'}`}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-primary tracking-widest uppercase opacity-70">#{rfq.rfqNumber}</p>
-                      <h3 className="font-headline font-bold text-lg text-primary leading-tight">{rfq.companyName}</h3>
-                      <p className="text-sm text-on-surface-variant">{rfq.customerName}</p>
-                    </div>
-                    <span className={`px-3 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wider ${STATUS_BADGE[rfq.status]}`}>
-                      {rfq.status?.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2 text-on-surface-variant opacity-80">
-                      <span className="material-symbols-outlined text-base">calendar_today</span>
-                      <span className="text-xs font-medium">{new Date(rfq.submittedAt).toLocaleDateString()}</span>
-                    </div>
-                    <span className="text-xs text-on-surface-variant">{rfq.itemCount} items</span>
-                  </div>
-                </Link>
-              ))}
+          <input
+            type="date"
+            value={filters.dateFrom}
+            onChange={set('dateFrom')}
+            className="w-full px-4 py-2.5 bg-surface-container-high border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="From date"
+          />
+          <input
+            type="date"
+            value={filters.dateTo}
+            onChange={set('dateTo')}
+            className="w-full px-4 py-2.5 bg-surface-container-high border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="To date"
+          />
         </div>
 
-        {/* Load more */}
-        {data?.totalCount > 20 && (
-          <div className="mt-10 flex justify-center">
+        {/* Status chips */}
+        <div className="flex gap-2 flex-wrap">
+          {STATUS_CHIPS.map((chip) => (
             <button
-              onClick={() => setPage((p) => p + 1)}
-              className="px-8 py-3 bg-surface-container-high text-on-surface-variant font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-surface-container-highest transition-colors"
+              key={chip.value}
+              onClick={() => setFilters((f) => ({ ...f, status: chip.value, page: 1 }))}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                filters.status === chip.value
+                  ? 'bg-primary text-white'
+                  : 'bg-surface-container text-on-surface-variant hover:bg-secondary-container hover:text-primary'
+              }`}
             >
-              Load More Results
+              {chip.label}
+              {chip.value && data?.items && (
+                <span className="ml-1.5 opacity-70">
+                  ({data.items.filter((r) => r.status === chip.value).length})
+                </span>
+              )}
             </button>
+          ))}
+          {(filters.rfqNumber || filters.customerName || filters.status || filters.dateFrom || filters.dateTo) && (
+            <button
+              onClick={() => setFilters({ rfqNumber: '', customerName: '', status: '', dateFrom: '', dateTo: '', page: 1 })}
+              className="px-4 py-1.5 rounded-full text-xs font-bold text-error hover:bg-error-container/20 transition-all flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Results count */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-on-surface-variant">
+          {isLoading ? 'Loading...' : `${data?.totalCount || 0} RFQs found`}
+        </p>
+      </div>
+
+      {/* Table */}
+      <div className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[11px] font-bold text-outline uppercase tracking-wider border-b border-surface-container bg-surface-container-low">
+                <th className="text-left py-4 px-6">RFQ #</th>
+                <th className="text-left py-4 px-4">Customer</th>
+                <th className="text-left py-4 px-4">Company</th>
+                <th className="text-left py-4 px-4">Status</th>
+                <th className="text-left py-4 px-4">Items</th>
+                <th className="text-left py-4 px-4">Submitted</th>
+                <th className="py-4 px-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-container">
+              {isLoading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      {Array.from({ length: 7 }).map((_, j) => (
+                        <td key={j} className="py-4 px-4">
+                          <div className="h-4 bg-surface-container rounded animate-pulse" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : data?.items?.length === 0
+                ? (
+                  <tr>
+                    <td colSpan={7} className="py-20 text-center text-on-surface-variant">
+                      <span className="material-symbols-outlined text-5xl mb-3 block opacity-30">search_off</span>
+                      <p className="font-medium">No RFQs match your filters</p>
+                    </td>
+                  </tr>
+                )
+                : data?.items?.map((rfq) => (
+                    <tr key={rfq.id} className="hover:bg-surface-container-low transition-colors">
+                      <td className="py-4 px-6">
+                        <Link to={`/admin/rfqs/${rfq.id}`} className="font-mono text-primary font-bold hover:underline text-xs">
+                          {rfq.rfqNumber}
+                        </Link>
+                      </td>
+                      <td className="py-4 px-4 font-medium text-on-surface">{rfq.customerName}</td>
+                      <td className="py-4 px-4 text-on-surface-variant">{rfq.companyName}</td>
+                      <td className="py-4 px-4">
+                        <select
+                          value={rfq.status}
+                          onChange={(e) => updateStatus.mutate({ id: rfq.id, status: e.target.value })}
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border-none outline-none cursor-pointer ${STATUS_BADGE[rfq.status]}`}
+                        >
+                          <option value="NEW">New</option>
+                          <option value="UNDER_REVIEW">Under Review</option>
+                          <option value="QUOTATION_SENT">Quotation Sent</option>
+                          <option value="CLOSED">Closed</option>
+                        </select>
+                      </td>
+                      <td className="py-4 px-4 text-on-surface-variant">{rfq.itemCount}</td>
+                      <td className="py-4 px-4 text-on-surface-variant text-xs">
+                        {new Date(rfq.submittedAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <Link
+                          to={`/admin/rfqs/${rfq.id}`}
+                          className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-bold"
+                        >
+                          <span className="material-symbols-outlined text-sm">visibility</span>
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {data?.totalCount > 20 && (
+          <div className="flex justify-between items-center px-6 py-4 border-t border-surface-container">
+            <p className="text-xs text-on-surface-variant">
+              Page {filters.page} · {data.totalCount} total
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}
+                disabled={filters.page === 1}
+                className="px-4 py-2 rounded-lg border border-outline-variant text-sm disabled:opacity-40 hover:bg-surface-container transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}
+                disabled={!data?.items || data.items.length < 20}
+                className="px-4 py-2 rounded-lg border border-outline-variant text-sm disabled:opacity-40 hover:bg-surface-container transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
-      </main>
-
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-slate-100 flex justify-around items-center h-20 px-4 z-50">
-        <Link to="/admin" className="flex flex-col items-center gap-1 text-slate-400">
-          <span className="material-symbols-outlined">dashboard</span>
-          <span className="text-[10px] font-bold uppercase tracking-tighter">Dash</span>
-        </Link>
-        <Link to="/admin/rfqs" className="flex flex-col items-center gap-1 text-primary">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>request_quote</span>
-          <span className="text-[10px] font-extrabold uppercase tracking-tighter">RFQs</span>
-        </Link>
-        <div className="relative -top-8">
-          <Link to="/rfq" className="w-16 h-16 signature-gradient text-white rounded-full shadow-lg flex items-center justify-center ring-4 ring-background">
-            <span className="material-symbols-outlined text-3xl">add</span>
-          </Link>
-        </div>
-        <Link to="/admin/products" className="flex flex-col items-center gap-1 text-slate-400">
-          <span className="material-symbols-outlined">inventory_2</span>
-          <span className="text-[10px] font-bold uppercase tracking-tighter">Stock</span>
-        </Link>
-        <Link to="/admin/settings" className="flex flex-col items-center gap-1 text-slate-400">
-          <span className="material-symbols-outlined">settings</span>
-          <span className="text-[10px] font-bold uppercase tracking-tighter">More</span>
-        </Link>
-      </nav>
-      <div className="h-24 md:hidden"></div>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }

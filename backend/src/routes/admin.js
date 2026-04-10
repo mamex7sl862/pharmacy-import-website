@@ -245,4 +245,48 @@ router.delete('/products/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// ── Testimonials management ───────────────────────────────────────────────────
+router.get('/testimonials', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM testimonials ORDER BY sort_order ASC')
+    res.json(rows)
+  } catch (err) { next(err) }
+})
+
+router.post('/testimonials', async (req, res, next) => {
+  try {
+    const { customerName, companyName, comment, isActive, sortOrder } = req.body
+    const { rows } = await pool.query(
+      `INSERT INTO testimonials (customer_name, company_name, comment, is_active, sort_order)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [customerName, companyName, comment, isActive ?? true, sortOrder ?? 0]
+    )
+    res.status(201).json(rows[0])
+  } catch (err) { next(err) }
+})
+
+router.put('/testimonials/:id', async (req, res, next) => {
+  try {
+    const { customerName, companyName, comment, isActive, sortOrder } = req.body
+    await pool.query(
+      `UPDATE testimonials SET customer_name=$1, company_name=$2, comment=$3, is_active=$4, sort_order=$5 WHERE id=$6`,
+      [customerName, companyName, comment, isActive, sortOrder, req.params.id]
+    )
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+router.delete('/testimonials/:id', async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM testimonials WHERE id = $1', [req.params.id])
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// Admin testimonials (proxied through content routes)
+router.get('/testimonials',     async (req, res, next) => { req.url = '/admin/testimonials';     require('./content')(req, res, next) })
+router.post('/testimonials',    async (req, res, next) => { req.url = '/admin/testimonials';     require('./content')(req, res, next) })
+router.put('/testimonials/:id', async (req, res, next) => { req.url = `/admin/testimonials/${req.params.id}`; require('./content')(req, res, next) })
+router.delete('/testimonials/:id', async (req, res, next) => { req.url = `/admin/testimonials/${req.params.id}`; require('./content')(req, res, next) })
+
 module.exports = router

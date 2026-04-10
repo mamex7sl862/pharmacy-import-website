@@ -26,7 +26,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 // Rate limiting for RFQ submissions
 const rfqLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
+  max: process.env.NODE_ENV === 'production' ? 10 : 1000, // relaxed in dev
   message: { error: 'TOO_MANY_REQUESTS', message: 'Too many RFQ submissions. Try again later.' },
 })
 
@@ -40,6 +40,34 @@ app.use('/api/content', contentRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }))
+
+// Dev-only auto-login endpoint — returns admin token without password
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/auth/dev-login', async (req, res) => {
+    try {
+      const jwt = require('jsonwebtoken')
+      const pool = require('./db/pool')
+      const { rows } = await pool.query(
+        "SELECT id, email, full_name, company_name, role FROM users WHERE role = 'admin' LIMIT 1"
+      )
+      if (!rows.length) {
+        // No admin in DB yet — return a mock token
+        const mockUser = { id: 'dev-admin', email: 'admin@pharmalink.com', role: 'admin' }
+        return res.json({
+          accessToken: jwt.sign(mockUser, process.env.JWT_SECRET, { expiresIn: '7d' }),
+          user: { id: mockUser.id, email: mockUser.email, fullName: 'Dev Admin', companyName: 'PharmaLink', role: 'admin' },
+        })
+      }
+      const u = rows[0]
+      res.json({
+        accessToken: jwt.sign({ id: u.id, email: u.email, role: u.role }, process.env.JWT_SECRET, { expiresIn: '7d' }),
+        user: { id: u.id, email: u.email, fullName: u.full_name, companyName: u.company_name, role: u.role },
+      })
+    } catch (err) {
+      res.status(500).json({ error: 'DEV_LOGIN_FAILED' })
+    }
+  })
+}
 
 // Global error handler
 app.use((err, req, res, next) => {

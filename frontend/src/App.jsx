@@ -13,6 +13,8 @@ import Compare from './pages/Compare'
 import CustomerDashboard from './pages/CustomerDashboard'
 import CustomerRFQDetail from './pages/CustomerRFQDetail'
 import AdminDashboard from './pages/AdminDashboard'
+import AdminProducts from './pages/AdminProducts'
+import AdminContent from './pages/AdminContent'
 import RFQList from './pages/RFQList'
 import RFQDetails from './pages/RFQDetails'
 import Login from './pages/Login'
@@ -30,6 +32,9 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               <Route path="rfqs" element={<RFQList />} />
               <Route path="rfqs/:id" element={<RFQDetails />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="products/new" element={<AdminProducts />} />
+              <Route path="content" element={<AdminContent />} />
             </Routes>
           </ProtectedRoute>
         } />
