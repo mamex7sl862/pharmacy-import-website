@@ -20,6 +20,14 @@ const STATIC_PRODUCTS = [
   { id: 's12', name: 'N95 Respirator Mask',     genericName: 'Filtering Facepiece',       brand: 'MedShield',       category: 'medical-supplies',packageSize: 'Box of 20 Masks',               imageUrl: 'https://images.unsplash.com/photo-1584634731339-252c581abfc5?w=600&q=80' },
 ]
 
+const CATEGORY_CONFIG = {
+  'prescription':    { icon: 'medication',       color: 'bg-blue-50',   iconColor: 'text-blue-400',   label: 'Rx' },
+  'otc':             { icon: 'pill',              color: 'bg-green-50',  iconColor: 'text-green-400',  label: 'OTC' },
+  'medical-supplies':{ icon: 'medical_services',  color: 'bg-purple-50', iconColor: 'text-purple-400', label: 'Medical' },
+  'surgical':        { icon: 'content_cut',       color: 'bg-red-50',    iconColor: 'text-red-400',    label: 'Surgical' },
+  'laboratory':      { icon: 'biotech',           color: 'bg-amber-50',  iconColor: 'text-amber-400',  label: 'Lab' },
+  'personal-care':   { icon: 'nutrition',         color: 'bg-teal-50',   iconColor: 'text-teal-400',   label: 'Wellness' },
+}
 const CATEGORIES = [
   { key: '',               label: 'All Products',       icon: 'apps' },
   { key: 'prescription',   label: 'Prescription',       icon: 'medication' },
@@ -63,9 +71,20 @@ function ProductCard({ product, isAdded, onAdd }) {
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-surface-container">
-            <span className="material-symbols-outlined text-6xl text-outline/30">medication</span>
-          </div>
+          // Category-specific styled placeholder — looks professional without a real image
+          (() => {
+            const cfg = CATEGORY_CONFIG[product.category] || CATEGORY_CONFIG['prescription']
+            return (
+              <div className={`w-full h-full flex flex-col items-center justify-center gap-3 ${cfg.color}`}>
+                <span className={`material-symbols-outlined text-5xl ${cfg.iconColor}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {cfg.icon}
+                </span>
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${cfg.iconColor} opacity-60`}>
+                  {cfg.label}
+                </span>
+              </div>
+            )
+          })()
         )}
         <span className="absolute top-4 right-4 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
           In Stock
