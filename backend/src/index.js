@@ -51,4 +51,15 @@ app.use((err, req, res, next) => {
 })
 
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => console.log(`PharmaLink API running on port ${PORT}`))
+app.listen(PORT, async () => {
+  console.log(`PharmaLink API running on port ${PORT}`)
+  // Test DB connection on startup
+  try {
+    const pool = require('./db/pool')
+    const result = await pool.query('SELECT COUNT(*) FROM products')
+    console.log(`✅ Database connected — ${result.rows[0].count} products in catalog`)
+  } catch (err) {
+    console.error('❌ Database connection failed:', err.message)
+    console.error('   Check DATABASE_URL in backend/.env')
+  }
+})

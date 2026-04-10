@@ -59,21 +59,30 @@ async function sendAdminNotification(rfqNumber, customerName, companyName, itemC
 }
 
 async function sendQuotationEmail(email, rfqNumber, pdfBuffer) {
-  await transporter.sendMail({
-    from: `"PharmaLink Wholesale" <${process.env.SMTP_FROM}>`,
-    to: email,
-    subject: `Quotation for ${rfqNumber}`,
-    html: `
-      <h2>Your Quotation is Ready</h2>
-      <p>Please find your quotation for <strong>${rfqNumber}</strong> attached.</p>
-      <p>Contact us if you have any questions.</p>
-      <br/>
-      <p>PharmaLink Wholesale Team</p>
-    `,
-    attachments: pdfBuffer
-      ? [{ filename: `${rfqNumber}-quotation.pdf`, content: pdfBuffer }]
-      : [],
-  })
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    console.log(`[EMAIL SKIPPED] Quotation to ${email} for ${rfqNumber}`)
+    return
+  }
+  try {
+    await transporter.sendMail({
+      from: `"PharmaLink Wholesale" <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: `Quotation for ${rfqNumber}`,
+      html: `
+        <h2>Your Quotation is Ready</h2>
+        <p>Please find your quotation for <strong>${rfqNumber}</strong> attached.</p>
+        <p>Contact us if you have any questions.</p>
+        <br/>
+        <p>PharmaLink Wholesale Team</p>
+      `,
+      attachments: pdfBuffer
+        ? [{ filename: `${rfqNumber}-quotation.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+        : [],
+    })
+  } catch (err) {
+    console.error('[EMAIL ERROR] Quotation email:', err.message)
+    throw err // re-throw so caller knows it failed
+  }
 }
 
 module.exports = { sendCustomerConfirmation, sendAdminNotification, sendQuotationEmail }

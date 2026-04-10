@@ -8,10 +8,10 @@ router.use(requireAdmin)
 
 const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'QUOTATION_SENT', 'CLOSED']
 
-// GET /api/admin/rfqs
+// ── GET /api/admin/rfqs ───────────────────────────────────────────────────────
 router.get('/rfqs', async (req, res, next) => {
   try {
-    let { rfqNumber, customerName, companyName, status, page = 1, limit = 20 } = req.query
+    let { rfqNumber, customerName, companyName, status, dateFrom, dateTo, page = 1, limit = 20 } = req.query
     page = Math.max(1, parseInt(page))
     limit = Math.min(100, parseInt(limit))
     const offset = (page - 1) * limit
@@ -19,10 +19,13 @@ router.get('/rfqs', async (req, res, next) => {
     const conditions = []
     const params = []
 
-    if (rfqNumber) { params.push(`%${rfqNumber}%`); conditions.push(`r.rfq_number ILIKE $${params.length}`) }
-    if (customerName) { params.push(`%${customerName}%`); conditions.push(`(u.full_name ILIKE $${params.length} OR r.guest_full_name ILIKE $${params.length})`) }
-    if (companyName) { params.push(`%${companyName}%`); conditions.push(`(u.company_name ILIKE $${params.length} OR r.guest_company ILIKE $${params.length})`) }
+    // FIX: use $${params.length} not ${params.length}
+    if (rfqNumber)    { params.push(`%${rfqNumber}%`);    conditions.push(`r.rfq_number ILIKE $${params.length}`) }
+    if (customerName) { params.push(`%${customerName}%`); conditions.push(`(COALESCE(u.full_name, r.guest_full_name) ILIKE $${params.length})`) }
+    if (companyName)  { params.push(`%${companyName}%`);  conditions.push(`(COALESCE(u.company_name, r.guest_company) ILIKE $${params.length})`) }
     if (status && VALID_STATUSES.includes(status)) { params.push(status); conditions.push(`r.status = $${params.length}`) }
+    if (dateFrom) { params.push(dateFrom); conditions.push(`r.submitted_at >= $${params.length}`) }
+    if (dateTo)   { params.push(dateTo);   conditions.push(`r.submitted_at <= $${params.length}`) }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
@@ -50,7 +53,7 @@ router.get('/rfqs', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
-// GET /api/admin/rfqs/:id
+// ── GET /api/admin/rfqs/:id ───────────────────────────────────────────────────
 router.get('/rfqs/:id', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
@@ -65,7 +68,7 @@ router.get('/rfqs/:id', async (req, res, next) => {
 
     const rfq = rows[0]
     const [{ rows: items }, { rows: attachments }] = await Promise.all([
-      pool.query('SELECT * FROM rfq_items WHERE rfq_id = $1', [rfq.id]),
+      pool.query('SELECT * FROM rfq_items WHERE rfq_id = $1 ORDER BY id', [rfq.id]),
       pool.query('SELECT * FROM rfq_attachments WHERE rfq_id = $1', [rfq.id]),
     ])
     rfq.items = items
@@ -75,67 +78,136 @@ router.get('/rfqs/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
-// PATCH /api/admin/rfqs/:id/status
+// ── PATCH /api/admin/rfqs/:id/status ─────────────────────────────────────────
 router.patch('/rfqs/:id/status', async (req, res, next) => {
   try {
     const { status } = req.body
     if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'INVALID_STATUS' })
-    await pool.query('UPDATE rfqs SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.id])
+    await pool.query(
+      'UPDATE rfqs SET status = $1, updated_at = NOW() WHERE id = $2',
+      [status, req.params.id]
+    )
     res.json({ success: true })
   } catch (err) { next(err) }
 })
 
-// POST /api/admin/rfqs/:id/respond — send quotation email + PDF
+// ── PATCH /api/admin/rfqs/:id/notes — save internal notes ────────────────────
+router.patch('/rfqs/:id/notes', async (req, res, next) => {
+  try {
+    const { notes } = req.body
+    await pool.query(
+      'UPDATE rfqs SET internal_notes = $1, updated_at = NOW() WHERE id = $2',
+      [notes, req.params.id]
+    )
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// ── POST /api/admin/rfqs/:id/respond — generate PDF + send quotation email ───
 router.post('/rfqs/:id/respond', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT r.*, u.full_name AS "customerName", u.company_name AS "companyName", u.email
+      `SELECT r.*,
+              COALESCE(u.full_name, r.guest_full_name) AS "customerName",
+              COALESCE(u.company_name, r.guest_company) AS "companyName",
+              COALESCE(u.email, r.guest_email) AS "customerEmail"
        FROM rfqs r LEFT JOIN users u ON u.id = r.customer_id WHERE r.id = $1`,
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
 
     const rfq = rows[0]
-    const { rows: items } = await pool.query('SELECT * FROM rfq_items WHERE rfq_id = $1', [rfq.id])
+    const { rows: items } = await pool.query(
+      'SELECT * FROM rfq_items WHERE rfq_id = $1 ORDER BY id', [rfq.id]
+    )
     rfq.items = items
 
-    const pdfBuffer = await generateRFQPDF(rfq)
-    const email = rfq.email || rfq.guest_email
+    // Build PDF-friendly object
+    const pdfData = {
+      rfqNumber:   rfq.rfq_number,
+      submittedAt: rfq.submitted_at,
+      customerName: rfq.customerName,
+      companyName:  rfq.companyName,
+      email:        rfq.customerEmail,
+      phone:        rfq.guest_phone,
+      city:         rfq.guest_city,
+      country:      rfq.guest_country,
+      message:      rfq.message,
+      items:        items.map((i) => ({
+        productName: i.product_name,
+        brand:       i.brand,
+        quantity:    i.quantity,
+        unit:        i.unit,
+        notes:       i.notes,
+      })),
+    }
 
-    await sendQuotationEmail(email, rfq.rfq_number, pdfBuffer)
-    await pool.query("UPDATE rfqs SET status = 'QUOTATION_SENT', updated_at = NOW() WHERE id = $1", [rfq.id])
+    const pdfBuffer = await generateRFQPDF(pdfData)
 
-    res.json({ success: true })
+    // Send email with PDF attached
+    await sendQuotationEmail(rfq.customerEmail, rfq.rfq_number, pdfBuffer)
+
+    // Update status
+    await pool.query(
+      "UPDATE rfqs SET status = 'QUOTATION_SENT', updated_at = NOW() WHERE id = $1",
+      [rfq.id]
+    )
+
+    res.json({ success: true, message: `Quotation sent to ${rfq.customerEmail}` })
   } catch (err) { next(err) }
 })
 
-// GET /api/admin/rfqs/:id/pdf
+// ── GET /api/admin/rfqs/:id/pdf — download RFQ as PDF ────────────────────────
 router.get('/rfqs/:id/pdf', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT r.*, u.full_name AS "customerName", u.company_name AS "companyName", u.email
+      `SELECT r.*,
+              COALESCE(u.full_name, r.guest_full_name) AS "customerName",
+              COALESCE(u.company_name, r.guest_company) AS "companyName",
+              COALESCE(u.email, r.guest_email) AS "customerEmail"
        FROM rfqs r LEFT JOIN users u ON u.id = r.customer_id WHERE r.id = $1`,
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
 
     const rfq = rows[0]
-    const { rows: items } = await pool.query('SELECT * FROM rfq_items WHERE rfq_id = $1', [rfq.id])
-    rfq.items = items
+    const { rows: items } = await pool.query(
+      'SELECT * FROM rfq_items WHERE rfq_id = $1 ORDER BY id', [rfq.id]
+    )
 
-    const pdfBuffer = await generateRFQPDF(rfq)
+    const pdfData = {
+      rfqNumber:    rfq.rfq_number,
+      submittedAt:  rfq.submitted_at,
+      customerName: rfq.customerName,
+      companyName:  rfq.companyName,
+      email:        rfq.customerEmail,
+      phone:        rfq.guest_phone,
+      city:         rfq.guest_city,
+      country:      rfq.guest_country,
+      message:      rfq.message,
+      items:        items.map((i) => ({
+        productName: i.product_name,
+        brand:       i.brand,
+        quantity:    i.quantity,
+        unit:        i.unit,
+        notes:       i.notes,
+      })),
+    }
+
+    const pdfBuffer = await generateRFQPDF(pdfData)
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${rfq.rfq_number}.pdf"`)
     res.send(pdfBuffer)
   } catch (err) { next(err) }
 })
 
-// Admin product management
+// ── Product management ────────────────────────────────────────────────────────
 router.get('/products', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, generic_name AS "genericName", brand, category,
-              package_size AS "packageSize", is_active AS "isActive", is_featured AS "isFeatured"
+              package_size AS "packageSize", description, image_url AS "imageUrl",
+              is_active AS "isActive", is_featured AS "isFeatured"
        FROM products ORDER BY name ASC`
     )
     res.json(rows)

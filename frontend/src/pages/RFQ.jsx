@@ -602,7 +602,23 @@ function Step4({ onBack, onSubmit, isLoading, isError }) {
               <span className="text-xs font-medium">Estimated quote response: <span className="font-bold">4 Hours</span></span>
             </div>
           </div>
-          {isError && <p className="text-xs text-error-container bg-error/20 p-3 rounded-lg mb-4">Submission failed. Please try again.</p>}
+          {isError && (
+            <div className="bg-error/20 text-white p-4 rounded-lg mb-4 text-sm space-y-1">
+              <p className="font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">error</span>
+                Submission failed
+              </p>
+              <p className="opacity-80 text-xs">
+                {submitMutation.error?.response?.data?.message
+                  || submitMutation.error?.response?.data?.error
+                  || submitMutation.error?.message
+                  || 'Could not reach the server. Make sure the backend is running.'}
+              </p>
+              {submitMutation.error?.response?.status && (
+                <p className="opacity-60 text-xs">Status: {submitMutation.error.response.status}</p>
+              )}
+            </div>
+          )}
           <button
             onClick={onSubmit}
             disabled={isLoading}

@@ -11,6 +11,7 @@ import RFQ from './pages/RFQ'
 import RFQSuccess from './pages/RFQSuccess'
 import Compare from './pages/Compare'
 import CustomerDashboard from './pages/CustomerDashboard'
+import CustomerRFQDetail from './pages/CustomerRFQDetail'
 import AdminDashboard from './pages/AdminDashboard'
 import RFQList from './pages/RFQList'
 import RFQDetails from './pages/RFQDetails'
@@ -52,7 +53,10 @@ export default function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/portal/*" element={
                   <ProtectedRoute role="customer">
-                    <CustomerDashboard />
+                    <Routes>
+                      <Route index element={<CustomerDashboard />} />
+                      <Route path="rfqs/:id" element={<CustomerRFQDetail />} />
+                    </Routes>
                   </ProtectedRoute>
                 } />
               </Routes>

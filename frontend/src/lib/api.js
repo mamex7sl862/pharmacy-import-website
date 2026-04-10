@@ -3,7 +3,7 @@ import useAuthStore from '../store/authStore'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 10000,
+  timeout: 30000, // 30s — allows for slow DB cold starts
 })
 
 // Attach JWT to every request

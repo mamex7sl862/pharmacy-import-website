@@ -121,15 +121,28 @@ export default function CustomerDashboard() {
                           {STATUS_LABEL[rfq.status]}
                         </div>
                         {rfq.status === 'QUOTATION_SENT' ? (
-                          <a href={`/api/customer/rfqs/${rfq.id}/pdf`} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white font-label text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm">
+                          <button
+                            onClick={async () => {
+                              try {
+                                const response = await api.get(`/customer/rfqs/${rfq.id}/pdf`, { responseType: 'blob' })
+                                const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+                                const a = document.createElement('a'); a.href = url; a.download = `${rfq.rfqNumber}.pdf`; a.click()
+                                window.URL.revokeObjectURL(url)
+                              } catch (e) { console.error(e) }
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white font-label text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm"
+                          >
                             <span className="material-symbols-outlined text-lg">download</span>
                             Download PDF
-                          </a>
+                          </button>
                         ) : (
-                          <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label text-sm font-semibold hover:bg-surface-container-low transition-colors">
+                          <Link
+                            to={`/portal/rfqs/${rfq.id}`}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label text-sm font-semibold hover:bg-surface-container-low transition-colors"
+                          >
                             <span className="material-symbols-outlined text-lg">visibility</span>
                             Details
-                          </button>
+                          </Link>
                         )}
                       </div>
                     </div>
