@@ -469,7 +469,7 @@ function Step3({ onNext, onBack }) {
   )
 }
 
-function Step4({ onBack, onSubmit, isLoading, isError }) {
+function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
   const { customerInfo, selectedProducts, additionalInfo } = useRFQStore()
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -609,14 +609,8 @@ function Step4({ onBack, onSubmit, isLoading, isError }) {
                 Submission failed
               </p>
               <p className="opacity-80 text-xs">
-                {submitMutation.error?.response?.data?.message
-                  || submitMutation.error?.response?.data?.error
-                  || submitMutation.error?.message
-                  || 'Could not reach the server. Make sure the backend is running.'}
+                {errorMessage || 'Could not reach the server. Make sure the backend is running.'}
               </p>
-              {submitMutation.error?.response?.status && (
-                <p className="opacity-60 text-xs">Status: {submitMutation.error.response.status}</p>
-              )}
             </div>
           )}
           <button
@@ -703,7 +697,7 @@ export default function RFQ() {
           {currentStep === 1 && <Step1 onNext={() => setStep(2)} />}
           {currentStep === 2 && <Step2 onNext={() => setStep(3)} onBack={() => setStep(1)} />}
           {currentStep === 3 && <Step3 onNext={() => setStep(4)} onBack={() => setStep(2)} />}
-          {currentStep === 4 && <Step4 onBack={() => setStep(3)} onSubmit={handleFinalSubmit} isLoading={submitMutation.isPending} isError={submitMutation.isError} />}
+          {currentStep === 4 && <Step4 onBack={() => setStep(3)} onSubmit={handleFinalSubmit} isLoading={submitMutation.isPending} isError={submitMutation.isError} errorMessage={submitMutation.error?.response?.data?.message || submitMutation.error?.message} />}
         </div>
       </main>
 

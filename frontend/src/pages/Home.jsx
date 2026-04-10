@@ -223,7 +223,7 @@ function FeaturedCard({ product }) {
 
 export default function Home() {
   const { data: featured } = useQuery({ queryKey: ['featured-products'], queryFn: () => api.get('/products/featured').then((r) => r.data) })
-  const { data: testimonials } = useQuery({ queryKey: ['testimonials'], queryFn: () => api.get('/testimonials').then((r) => r.data) })
+  const { data: testimonials } = useQuery({ queryKey: ['testimonials'], queryFn: () => api.get('/content/testimonials').then((r) => r.data) })
   const displayProducts = featured?.length > 0 ? featured.slice(0, 4) : PLACEHOLDER_PRODUCTS
   const displayTestimonials = testimonials?.length > 0 ? testimonials.slice(0, 2) : TESTIMONIALS_FALLBACK
 
