@@ -80,41 +80,39 @@ function HeroSlideshow() {
       {/* Persistent dark overlay */}
       <div className="absolute inset-0 z-[1] bg-gradient-to-br from-slate-900/90 via-blue-950/70 to-slate-900/85" />
 
-      {/* Content */}
-      <div className="relative z-10 max-w-screen-2xl mx-auto px-8 w-full">
-        <div className="max-w-3xl">
-          <span
-            key={`badge-${current}`}
-            className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-primary-fixed-dim text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-sm border border-primary/30 animate-fade-in"
-          >
-            {slide.badge}
-          </span>
-          <h1
-            key={`h1-${current}`}
-            className="text-white font-headline text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.1] animate-fade-in"
-          >
-            Trusted Pharmaceutical Wholesale &amp;{' '}
-            <span className="text-blue-400">{slide.accent}</span>
-          </h1>
-          <p
-            key={`p-${current}`}
-            className="text-slate-300 text-lg md:text-xl mb-12 max-w-xl font-body leading-relaxed animate-fade-in"
-          >
-            {slide.subtitle}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link to="/rfq" className="signature-gradient text-white px-10 py-5 rounded-lg font-headline font-bold text-lg hover:scale-[1.02] transition-all shadow-2xl">
-              Request Quotation
-            </Link>
-            <Link to="/products" className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-5 rounded-lg font-headline font-bold text-lg hover:bg-white/20 transition-all">
-              View Products
-            </Link>
-          </div>
+      {/* Content — centered */}
+      <div className="relative z-10 max-w-screen-2xl mx-auto px-8 w-full flex flex-col items-center text-center">
+        <span
+          key={`badge-${current}`}
+          className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-primary-fixed-dim text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-sm border border-primary/30 animate-fade-in"
+        >
+          {slide.badge}
+        </span>
+        <h1
+          key={`h1-${current}`}
+          className="text-white font-headline text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.1] animate-fade-in max-w-4xl"
+        >
+          Trusted Pharmaceutical Wholesale &amp;{' '}
+          <span className="text-blue-400">{slide.accent}</span>
+        </h1>
+        <p
+          key={`p-${current}`}
+          className="text-slate-300 text-lg md:text-xl mb-12 max-w-2xl font-body leading-relaxed animate-fade-in"
+        >
+          {slide.subtitle}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link to="/rfq" className="signature-gradient text-white px-10 py-5 rounded-lg font-headline font-bold text-lg hover:scale-[1.02] transition-all shadow-2xl">
+            Request Quotation
+          </Link>
+          <Link to="/products" className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-5 rounded-lg font-headline font-bold text-lg hover:bg-white/20 transition-all">
+            View Products
+          </Link>
         </div>
       </div>
 
-      {/* Slide controls — bottom left */}
-      <div className="absolute bottom-10 left-8 z-10 flex items-center gap-4">
+      {/* Slide controls — bottom center */}
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4">
         {/* Prev / Next arrows */}
         <button
           onClick={goBack}
