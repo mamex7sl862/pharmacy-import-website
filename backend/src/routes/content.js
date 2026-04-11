@@ -12,6 +12,18 @@ router.get('/testimonials', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// GET /api/content/site/:section — public fetch of any site_content section
+router.get('/site/:section', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT data FROM site_content WHERE section = $1',
+      [req.params.section]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    res.json(rows[0].data)
+  } catch (err) { next(err) }
+})
+
 // Admin testimonials CRUD (no auth middleware here — admin routes handle it)
 router.get('/admin/testimonials', async (req, res, next) => {
   try {

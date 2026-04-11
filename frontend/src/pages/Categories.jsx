@@ -1,33 +1,26 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import useRFQStore from '../store/rfqStore'
+import { useSiteContent } from '../lib/useSiteContent'
 
-const CATEGORIES = [
-  {
-    key: 'prescription',
-    label: 'Prescription Medicines',
-    icon: 'medication',
-    color: 'bg-blue-50',
-    iconColor: 'text-blue-600',
-    count: '2,400+ SKUs',
-    desc: 'Regulated prescription drugs sourced directly from certified manufacturers. Full traceability, cold-chain handling, and regulatory documentation included.',
-    features: ['WHO-GMP Certified Sources', 'Full Batch Traceability', 'Regulatory Documentation', 'Cold Chain Available'],
-    img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80',
-    examples: ['Amoxicillin 500mg', 'Atorvastatin 20mg', 'Metformin HCL 1000mg', 'Lisinopril 10mg'],
-  },
-  {
-    key: 'otc',
-    label: 'OTC Medications',
-    icon: 'pill',
-    color: 'bg-green-50',
-    iconColor: 'text-green-600',
-    count: '1,800+ SKUs',
-    desc: 'High-volume over-the-counter essentials for retail pharmacy networks. Competitive bulk pricing with fast turnaround for high-demand products.',
-    features: ['Bulk Pricing Available', 'Fast Turnaround', 'Retail-Ready Packaging', 'Private Label Options'],
-    img: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=800&q=80',
-    examples: ['Paracetamol 500mg', 'Aspirin 100mg', 'Ibuprofen 400mg', 'Vitamin C 1000mg'],
-  },
-  {
+// Color/icon mapping per category key (visual only, not stored in DB)
+const CAT_STYLE = {
+  'prescription':    { icon: 'medication',       color: 'bg-blue-50',   iconColor: 'text-blue-600' },
+  'otc':             { icon: 'pill',              color: 'bg-green-50',  iconColor: 'text-green-600' },
+  'medical-supplies':{ icon: 'medical_services',  color: 'bg-purple-50', iconColor: 'text-purple-600' },
+  'surgical':        { icon: 'content_cut',       color: 'bg-red-50',    iconColor: 'text-red-600' },
+  'laboratory':      { icon: 'biotech',           color: 'bg-amber-50',  iconColor: 'text-amber-600' },
+  'personal-care':   { icon: 'nutrition',         color: 'bg-teal-50',   iconColor: 'text-teal-600' },
+}
+
+const DEFAULT_CATEGORIES = [
+  { key: 'prescription',    label: 'Prescription Medicines',        count: '2,400+ SKUs', desc: 'Regulated prescription drugs sourced directly from certified manufacturers.', features: ['WHO-GMP Certified Sources', 'Full Batch Traceability', 'Regulatory Documentation', 'Cold Chain Available'], img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80', examples: ['Amoxicillin 500mg', 'Atorvastatin 20mg', 'Metformin HCL 1000mg', 'Lisinopril 10mg'] },
+  { key: 'otc',             label: 'OTC Medications',               count: '1,800+ SKUs', desc: 'High-volume over-the-counter essentials for retail pharmacy networks.', features: ['Bulk Pricing Available', 'Fast Turnaround', 'Retail-Ready Packaging', 'Private Label Options'], img: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=800&q=80', examples: ['Paracetamol 500mg', 'Aspirin 100mg', 'Ibuprofen 400mg', 'Vitamin C 1000mg'] },
+  { key: 'medical-supplies',label: 'Medical Supplies',              count: '3,200+ SKUs', desc: 'Consumables and disposables for clinical environments.', features: ['Sterile & Non-Sterile', 'Single-Use Certified', 'Hospital Grade Quality', 'Bulk Discounts'], img: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=800&q=80', examples: ['IV Infusion Sets', 'Surgical Gloves', 'Wound Dressings', 'Syringes & Needles'] },
+  { key: 'surgical',        label: 'Surgical Products',             count: '900+ SKUs',   desc: 'Precision instruments and sterile disposables for operating theaters.', features: ['ISO 13485 Certified', 'Sterility Guaranteed', 'Biocompatibility Tested', 'Surgeon-Grade Quality'], img: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80', examples: ['Scalpels & Blades', 'Surgical Sutures', 'Retractors', 'Electrosurgical Units'] },
+  { key: 'laboratory',      label: 'Laboratory Equipment',          count: '1,100+ SKUs', desc: 'Diagnostic devices and consumables for clinical research facilities.', features: ['CE & FDA Cleared', 'Calibration Certificates', 'Technical Support', 'Reagent Compatibility'], img: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=800&q=80', examples: ['PCR Reagents', 'Centrifuges', 'Microscope Slides', 'Blood Glucose Meters'] },
+  { key: 'personal-care',   label: 'Personal Care & Nutraceuticals',count: '600+ SKUs',   desc: 'Pharmaceutical-grade vitamins, supplements, and personal care products.', features: ['GMP Certified', 'Third-Party Tested', 'Allergen Declarations', 'Halal & Kosher Options'], img: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=800&q=80', examples: ['Vitamin D3 1000IU', 'Omega-3 Fish Oil', 'Zinc Supplements', 'Probiotic Capsules'] },
+]
     key: 'medical-supplies',
     label: 'Medical Supplies',
     icon: 'medical_services',
@@ -85,6 +78,11 @@ const PROCESS = [
 ]
 
 export default function Categories() {
+  const categoriesData = useSiteContent('categories', DEFAULT_CATEGORIES)
+  const CATEGORIES = (categoriesData || DEFAULT_CATEGORIES).map(cat => ({
+    ...cat,
+    ...(CAT_STYLE[cat.key] || { icon: 'medication', color: 'bg-blue-50', iconColor: 'text-blue-600' }),
+  }))
   const [activeCategory, setActiveCategory] = useState(null)
   const navigate = useNavigate()
   const { setStep } = useRFQStore()

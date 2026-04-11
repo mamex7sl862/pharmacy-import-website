@@ -1,11 +1,26 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useSiteContent } from '../lib/useSiteContent'
 
-const CONTACT_INFO = [
-  { icon: 'location_on', title: 'Headquarters',   lines: ['Medical Park West, Floor 14', 'London, UK EC1A 4HQ'] },
-  { icon: 'call',        title: 'Phone Support',  lines: ['+44 (0) 20 7946 0123', 'Mon–Fri, 9am – 6pm GMT'] },
-  { icon: 'mail',        title: 'Email',          lines: ['support@pharmalinkwholesale.com', 'procurement@pharmalinkwholesale.com'] },
-  { icon: 'schedule',    title: 'Business Hours', lines: ['Monday – Friday: 9am – 6pm GMT', 'Saturday: 10am – 2pm GMT'] },
+const DEFAULT_CONTACT_INFO = [
+  { icon: 'location_on', title: 'Headquarters',   line1: 'Medical Park West, Floor 14', line2: 'London, UK EC1A 4HQ' },
+  { icon: 'call',        title: 'Phone Support',  line1: '+44 (0) 20 7946 0123',        line2: 'Mon–Fri, 9am – 6pm GMT' },
+  { icon: 'mail',        title: 'Email',          line1: 'support@pharmalinkwholesale.com', line2: 'procurement@pharmalinkwholesale.com' },
+  { icon: 'schedule',    title: 'Business Hours', line1: 'Monday – Friday: 9am – 6pm GMT', line2: 'Saturday: 10am – 2pm GMT' },
+]
+
+const DEFAULT_FAQS = [
+  { q: 'How quickly do you respond to RFQs?',    a: 'We respond to all RFQ submissions within 4–24 business hours with a formal quotation.' },
+  { q: 'What is the minimum order quantity?',     a: 'MOQ varies by product. Many items have no minimum. Contact us for specific product requirements.' },
+  { q: 'Do you handle international shipping?',   a: 'Yes. We ship to 50+ countries and handle all customs documentation and freight arrangements.' },
+  { q: 'Are your products WHO-GMP certified?',    a: 'All products in our catalog are sourced exclusively from WHO-GMP certified manufacturers.' },
+]
+
+const DEFAULT_WHY = [
+  { icon: 'verified',       title: 'Genuine Products',    desc: 'Direct sourcing from certified manufacturers only.' },
+  { icon: 'payments',       title: 'Competitive Pricing', desc: 'Economies of scale passed directly to our clients.' },
+  { icon: 'local_shipping', title: 'Fast Delivery',       desc: 'Optimized air & sea freight for rapid turnaround.' },
+  { icon: 'gavel',          title: 'Licensed & Certified',desc: 'Strict adherence to regional health authorities.' },
 ]
 
 const DEPARTMENTS = [
@@ -16,14 +31,10 @@ const DEPARTMENTS = [
   { value: 'other',       label: 'Other' },
 ]
 
-const FAQS = [
-  { q: 'How quickly do you respond to RFQs?',    a: 'We respond to all RFQ submissions within 4–24 business hours with a formal quotation.' },
-  { q: 'What is the minimum order quantity?',     a: 'MOQ varies by product. Many items have no minimum. Contact us for specific product requirements.' },
-  { q: 'Do you handle international shipping?',   a: 'Yes. We ship to 50+ countries and handle all customs documentation and freight arrangements.' },
-  { q: 'Are your products WHO-GMP certified?',    a: 'All products in our catalog are sourced exclusively from WHO-GMP certified manufacturers.' },
-]
-
 export default function Contact() {
+  const contactInfo = useSiteContent('contact_info', DEFAULT_CONTACT_INFO)
+  const faqs        = useSiteContent('faq', DEFAULT_FAQS)
+  const whyUs       = useSiteContent('why_choose_us', DEFAULT_WHY)
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', company: '', department: '', message: '' })
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -86,16 +97,15 @@ export default function Contact() {
             </p>
 
             <div className="space-y-8 mb-12">
-              {CONTACT_INFO.map((item) => (
+              {(contactInfo || DEFAULT_CONTACT_INFO).map((item) => (
                 <div key={item.title} className="flex items-start gap-6">
                   <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md flex-shrink-0">
                     <span className="material-symbols-outlined text-primary">{item.icon}</span>
                   </div>
                   <div>
                     <h6 className="font-headline font-bold mb-1">{item.title}</h6>
-                    {item.lines.map((l) => (
-                      <p key={l} className="text-sm text-on-surface-variant leading-relaxed">{l}</p>
-                    ))}
+                    <p className="text-sm text-on-surface-variant leading-relaxed">{item.line1}</p>
+                    <p className="text-sm text-on-surface-variant leading-relaxed">{item.line2}</p>
                   </div>
                 </div>
               ))}
@@ -224,12 +234,7 @@ export default function Contact() {
       <section className="bg-primary text-white py-20 px-8">
         <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-12">
-            {[
-              { icon: 'verified',       title: 'Genuine Products',    desc: 'Direct sourcing from certified manufacturers only.' },
-              { icon: 'payments',       title: 'Competitive Pricing', desc: 'Economies of scale passed directly to our clients.' },
-              { icon: 'local_shipping', title: 'Fast Delivery',       desc: 'Optimized air & sea freight for rapid turnaround.' },
-              { icon: 'gavel',          title: 'Licensed & Certified',desc: 'Strict adherence to regional health authorities.' },
-            ].map((item) => (
+            {(whyUs || DEFAULT_WHY).map((item) => (
               <div key={item.title} className="text-center">
                 <span className="material-symbols-outlined text-4xl mb-4 text-blue-300 block" style={{ fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
                 <h4 className="font-headline font-bold text-lg mb-2">{item.title}</h4>
@@ -251,7 +256,7 @@ export default function Contact() {
             <Link to="/rfq" className="text-primary font-headline font-bold hover:underline">Submit an RFQ</Link>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
-            {FAQS.map((faq) => (
+            {(faqs || DEFAULT_FAQS).map((faq) => (
               <div key={faq.q} className="bg-surface-container-lowest p-8 rounded-xl hover:shadow-xl transition-all group">
                 <div className="w-10 h-10 bg-secondary-container rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary transition-colors">
                   <span className="material-symbols-outlined text-primary group-hover:text-white" style={{ fontVariationSettings: "'FILL' 1" }}>help</span>

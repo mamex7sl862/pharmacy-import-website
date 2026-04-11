@@ -106,3 +106,11 @@ CREATE TABLE IF NOT EXISTS testimonials (
   is_active     BOOLEAN NOT NULL DEFAULT true,
   sort_order    INTEGER NOT NULL DEFAULT 0
 );
+
+-- Site Content — full CMS sections managed by admin
+CREATE TABLE IF NOT EXISTS site_content (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  section    VARCHAR(100) UNIQUE NOT NULL,
+  data       JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

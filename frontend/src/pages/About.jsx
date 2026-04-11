@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
+import { useSiteContent } from '../lib/useSiteContent'
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+// ─── Fallback Data ────────────────────────────────────────────────────────────
 
-const STATS = [
+const DEFAULT_STATS = [
   { value: '15+', label: 'Years of Experience' },
   { value: '50+', label: 'Countries Served' },
   { value: '10,000+', label: 'Products in Catalog' },
@@ -44,6 +45,16 @@ const MILESTONES = [
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function About() {
+  const company   = useSiteContent('company_info', {})
+  const team      = useSiteContent('team', TEAM)
+  const timeline  = useSiteContent('timeline', MILESTONES)
+  const whyUs     = useSiteContent('why_choose_us', VALUES)
+  const STATS = [
+    { value: company?.yearsExp || '15+',    label: 'Years of Experience' },
+    { value: company?.countries || '50+',   label: 'Countries Served' },
+    { value: company?.products || '10,000+',label: 'Products in Catalog' },
+    { value: company?.accuracy || '99.8%',  label: 'Order Accuracy Rate' },
+  ]
   return (
     <div className="bg-background text-on-surface font-body">
 
@@ -99,7 +110,7 @@ export default function About() {
           <div className="relative">
             <div className="rounded-2xl overflow-hidden shadow-2xl aspect-[3/4]">
               <img
-                src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&q=90"
+                src={company?.aboutImage || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&q=90'}
                 alt="Doctor in white coat with stethoscope"
                 className="w-full h-full object-cover object-top"
               />
@@ -169,7 +180,7 @@ export default function About() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {VALUES.map((v) => (
+            {(whyUs || VALUES).map((v) => (
               <div key={v.title} className="bg-surface-container-lowest p-8 rounded-xl hover:shadow-xl transition-all group">
                 <div className="w-14 h-14 bg-secondary-container rounded-lg flex items-center justify-center mb-6 group-hover:bg-primary transition-colors">
                   <span className="material-symbols-outlined text-primary group-hover:text-white" style={{ fontVariationSettings: "'FILL' 1" }}>{v.icon}</span>
@@ -192,7 +203,7 @@ export default function About() {
           {/* Center line */}
           <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-0.5 bg-outline-variant/30 hidden md:block" />
           <div className="space-y-10">
-            {MILESTONES.map((m, i) => (
+            {(timeline || MILESTONES).map((m, i) => (
               <div key={m.year} className={`relative flex flex-col md:flex-row items-center gap-8 ${i % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}>
                 <div className={`flex-1 ${i % 2 === 0 ? 'md:text-right' : 'md:text-left'}`}>
                   <div className={`bg-surface-container-lowest p-8 rounded-2xl shadow-sm inline-block max-w-md ${i % 2 === 0 ? 'ml-auto' : 'mr-auto'}`}>
@@ -222,7 +233,7 @@ export default function About() {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {TEAM.map((member) => (
+            {(team || TEAM).map((member) => (
               <div key={member.name} className="bg-surface-container-lowest rounded-xl overflow-hidden group hover:shadow-xl transition-all">
                 <div className="aspect-square overflow-hidden">
                   <img

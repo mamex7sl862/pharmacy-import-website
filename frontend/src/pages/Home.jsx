@@ -3,38 +3,24 @@ import { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
 import useRFQStore from '../store/rfqStore'
+import { useSiteContent } from '../lib/useSiteContent'
 
-// Hero slides — beautiful, relevant pharmaceutical/medical background images
-const HERO_SLIDES = [
-  {
-    // Stunning blue-lit pharmaceutical laboratory with glassware
-    img: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=1800&q=90',
-    badge: 'Global Distribution Excellence',
-    accent: 'Import Solutions',
-    subtitle: 'Supplying medical institutions worldwide with precision-sourced medications, surgical supplies, and laboratory equipment through a certified cold-chain network.',
-  },
-  {
-    // Beautiful pharmacy/medicine shelf with colorful bottles
-    img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=1800&q=90',
-    badge: 'WHO-GMP Certified Sources',
-    accent: 'Pharmaceutical Wholesale',
-    subtitle: 'Every product in our catalog meets rigorous international standards including WHO, FDA, and EMA guidelines — from origin to delivery.',
-  },
-  {
-    // Scientist in lab coat working with test tubes — blue tones
-    img: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=1800&q=90',
-    badge: 'Cold Chain Specialists',
-    accent: 'Temperature-Controlled Logistics',
-    subtitle: 'IoT-monitored cold chain handling for temperature-sensitive pharmaceuticals. 2–8°C compliance guaranteed throughout the entire supply chain.',
-  },
-  {
-    // Modern hospital corridor / clinical environment
-    img: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1800&q=90',
-    badge: 'Surgical & Medical Supplies',
-    accent: 'Sterile & Certified',
-    subtitle: 'Precision instruments, sterile disposables, and medical consumables for operating theaters and clinical environments worldwide.',
-  },
+// Fallback data used when DB is not seeded yet
+const DEFAULT_SLIDES = [
+  { img: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=1800&q=90', badge: 'Global Distribution Excellence', accent: 'Import Solutions', subtitle: 'Supplying medical institutions worldwide with precision-sourced medications, surgical supplies, and laboratory equipment through a certified cold-chain network.' },
+  { img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=1800&q=90', badge: 'WHO-GMP Certified Sources', accent: 'Pharmaceutical Wholesale', subtitle: 'Every product in our catalog meets rigorous international standards including WHO, FDA, and EMA guidelines — from origin to delivery.' },
+  { img: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=1800&q=90', badge: 'Cold Chain Specialists', accent: 'Temperature-Controlled Logistics', subtitle: 'IoT-monitored cold chain handling for temperature-sensitive pharmaceuticals. 2–8°C compliance guaranteed throughout the entire supply chain.' },
+  { img: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1800&q=90', badge: 'Surgical & Medical Supplies', accent: 'Sterile & Certified', subtitle: 'Precision instruments, sterile disposables, and medical consumables for operating theaters and clinical environments worldwide.' },
 ]
+
+const DEFAULT_WHY = [
+  { icon: 'verified',       title: 'Genuine Products',    desc: 'Direct sourcing from certified manufacturers only.' },
+  { icon: 'payments',       title: 'Competitive Pricing', desc: 'Economies of scale passed directly to our clients.' },
+  { icon: 'local_shipping', title: 'Fast Delivery',       desc: 'Optimized air & sea freight for rapid turnaround.' },
+  { icon: 'gavel',          title: 'Licensed & Compliant',desc: 'Strict adherence to regional health authorities.' },
+]
+
+const DEFAULT_COMPANY = { yearsExp: '15+', countries: '50+', aboutImage: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&q=90', aboutHeading: 'The Essential Bridge in Healthcare Supply Chains', address: 'Medical Park West, Floor 14, London, UK EC1A 4HQ', phone: '+44 (0) 20 7946 0123', email: 'support@pharmalinkwholesale.com', procurementEmail: 'procurement@pharmalinkwholesale.com' }
 
 function HeroSlideshow() {
   const [current, setCurrent] = useState(0)
@@ -224,6 +210,14 @@ function FeaturedCard({ product }) {
 }
 
 export default function Home() {
+  const HERO_SLIDES = useSiteContent('hero_slides', DEFAULT_SLIDES)
+  const WHY_US = useSiteContent('why_choose_us', DEFAULT_WHY)
+  const company = useSiteContent('company_info', DEFAULT_COMPANY)
+  const contactInfo = useSiteContent('contact_info', [
+    { icon: 'location_on', title: 'Headquarters',   line1: 'Medical Park West, Floor 14', line2: 'London, UK EC1A 4HQ' },
+    { icon: 'call',        title: 'Phone Support',  line1: '+44 (0) 20 7946 0123',        line2: 'Mon–Fri, 9am – 6pm GMT' },
+    { icon: 'mail',        title: 'Email',          line1: 'support@pharmalinkwholesale.com', line2: 'procurement@pharmalinkwholesale.com' },
+  ])
   const { data: featured } = useQuery({ queryKey: ['featured-products'], queryFn: () => api.get('/products/featured').then((r) => r.data) })
   const { data: testimonials } = useQuery({ queryKey: ['testimonials'], queryFn: () => api.get('/content/testimonials').then((r) => r.data) })
   const displayProducts = featured?.length > 0 ? featured.slice(0, 4) : PLACEHOLDER_PRODUCTS
@@ -302,7 +296,7 @@ export default function Home() {
       <section className="bg-primary text-white py-20 px-8">
         <div className="max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-12">
-            {WHY_US.map((item) => (
+            {(WHY_US || DEFAULT_WHY).map((item) => (
               <div key={item.title} className="text-center">
                 <span className="material-symbols-outlined text-4xl mb-4 text-blue-300 block" style={{ fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
                 <h4 className="font-headline font-bold text-lg mb-2">{item.title}</h4>
@@ -379,18 +373,15 @@ export default function Home() {
             <h2 className="text-primary font-headline text-4xl font-extrabold mb-8">Let's Secure Your Supply Chain</h2>
             <p className="text-on-surface-variant text-lg mb-12">Our procurement experts are ready to assist with bulk orders, regular supplies, or specialized medical equipment imports.</p>
             <div className="space-y-8">
-              {[
-                { icon: 'location_on', title: 'Headquarters', lines: ['Medical Park West, Floor 14', 'London, UK EC1A 4HQ'] },
-                { icon: 'call', title: 'Phone Support', lines: ['+44 (0) 20 7946 0123', 'Available Mon-Fri, 9am - 6pm GMT'] },
-                { icon: 'mail', title: 'Email Support', lines: ['support@pharmalinkwholesale.com', 'procurement@pharmalinkwholesale.com'] },
-              ].map((item) => (
+              {(contactInfo || []).map((item) => (
                 <div key={item.title} className="flex items-start gap-6">
                   <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md flex-shrink-0">
                     <span className="material-symbols-outlined text-primary">{item.icon}</span>
                   </div>
                   <div>
                     <h6 className="font-headline font-bold mb-1">{item.title}</h6>
-                    {item.lines.map((l) => <p key={l} className="text-sm text-on-surface-variant">{l}</p>)}
+                    <p className="text-sm text-on-surface-variant">{item.line1}</p>
+                    <p className="text-sm text-on-surface-variant">{item.line2}</p>
                   </div>
                 </div>
               ))}

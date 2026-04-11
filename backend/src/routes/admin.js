@@ -256,6 +256,34 @@ router.delete('/products/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// ── Site Content CRUD ─────────────────────────────────────────────────────────
+router.get('/site-content', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT section, data, updated_at FROM site_content ORDER BY section')
+    res.json(rows)
+  } catch (err) { next(err) }
+})
+
+router.get('/site-content/:section', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT data FROM site_content WHERE section = $1', [req.params.section])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    res.json(rows[0].data)
+  } catch (err) { next(err) }
+})
+
+router.put('/site-content/:section', async (req, res, next) => {
+  try {
+    const { data } = req.body
+    await pool.query(
+      `INSERT INTO site_content (section, data) VALUES ($1, $2)
+       ON CONFLICT (section) DO UPDATE SET data = $2, updated_at = NOW()`,
+      [req.params.section, JSON.stringify(data)]
+    )
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
 // ── Testimonials management ───────────────────────────────────────────────────
 router.get('/testimonials', async (req, res, next) => {
   try {
