@@ -105,7 +105,7 @@ export default function Categories() {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 to-slate-900" />
         </div>
-        <div className="relative z-10 max-w-screen-2xl mx-auto text-center">
+        <div className="relative z-10 max-w-screen-2xl mx-auto px-8 w-full flex flex-col items-center text-center">
           <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-primary-fixed-dim text-xs font-bold tracking-widest uppercase mb-6 border border-primary/30">
             Product Catalog
           </span>

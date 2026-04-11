@@ -72,17 +72,17 @@ export default function Services() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/80 to-transparent" />
         </div>
-        <div className="relative z-10 max-w-screen-2xl mx-auto">
-          <div className="max-w-2xl">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-primary-fixed-dim text-xs font-bold tracking-widest uppercase mb-6 border border-primary/30">
-              What We Offer
-            </span>
-            <h1 className="text-white font-headline text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1]">
-              End-to-End Pharmaceutical <span className="text-blue-400">Supply Services</span>
-            </h1>
-            <p className="text-slate-300 text-lg leading-relaxed mb-8 max-w-xl">
-              From wholesale supply and international import to cold chain logistics and regulatory support — we cover every step of the pharmaceutical procurement journey.
-            </p>
+        <div className="relative z-10 max-w-screen-2xl mx-auto px-8 w-full flex flex-col items-center text-center">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-primary-fixed-dim text-xs font-bold tracking-widest uppercase mb-6 border border-primary/30">
+            What We Offer
+          </span>
+          <h1 className="text-white font-headline text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1] max-w-4xl">
+            End-to-End Pharmaceutical <span className="text-blue-400">Supply Services</span>
+          </h1>
+          <p className="text-slate-300 text-lg leading-relaxed mb-8 max-w-2xl mx-auto">
+            From wholesale supply and international import to cold chain logistics and regulatory support — we cover every step of the pharmaceutical procurement journey.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/rfq" className="signature-gradient text-white px-8 py-4 rounded-lg font-headline font-bold hover:scale-[1.02] transition-all shadow-xl inline-flex items-center gap-2">
               Request a Quotation
               <span className="material-symbols-outlined">arrow_forward</span>

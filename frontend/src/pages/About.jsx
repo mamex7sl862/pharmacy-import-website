@@ -58,26 +58,24 @@ export default function About() {
           />
         </div>
         <div className="absolute inset-0 z-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-transparent" />
-        <div className="relative z-10 max-w-screen-2xl mx-auto px-8 w-full">
-          <div className="max-w-2xl">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-primary-fixed-dim text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-sm border border-primary/30">
-              Our Story
-            </span>
-            <h1 className="text-white font-headline text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1]">
-              The Essential Bridge in Healthcare Supply Chains
-            </h1>
-            <p className="text-slate-300 text-lg md:text-xl mb-10 max-w-xl font-body leading-relaxed">
-              Since 2009, PharmaLink has connected medical institutions worldwide with precision-sourced pharmaceuticals, surgical supplies, and laboratory equipment.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/rfq" className="signature-gradient text-white px-10 py-4 rounded-lg font-headline font-bold text-base hover:scale-[1.02] transition-all shadow-2xl inline-flex items-center gap-2">
-                Request Quotation
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </Link>
-              <Link to="/products" className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-4 rounded-lg font-headline font-bold text-base hover:bg-white/20 transition-all">
-                View Products
-              </Link>
-            </div>
+        <div className="relative z-10 max-w-screen-2xl mx-auto px-8 w-full flex flex-col items-center text-center">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-primary-fixed-dim text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-sm border border-primary/30">
+            Our Story
+          </span>
+          <h1 className="text-white font-headline text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1] max-w-4xl">
+            The Essential Bridge in Healthcare Supply Chains
+          </h1>
+          <p className="text-slate-300 text-lg md:text-xl mb-10 max-w-2xl mx-auto font-body leading-relaxed">
+            Since 2009, PharmaLink has connected medical institutions worldwide with precision-sourced pharmaceuticals, surgical supplies, and laboratory equipment.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/rfq" className="signature-gradient text-white px-10 py-4 rounded-lg font-headline font-bold text-base hover:scale-[1.02] transition-all shadow-2xl inline-flex items-center gap-2">
+              Request Quotation
+              <span className="material-symbols-outlined">arrow_forward</span>
+            </Link>
+            <Link to="/products" className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-4 rounded-lg font-headline font-bold text-base hover:bg-white/20 transition-all">
+              View Products
+            </Link>
           </div>
         </div>
       </section>
