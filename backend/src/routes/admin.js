@@ -261,7 +261,10 @@ router.get('/site-content', async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT section, data, updated_at FROM site_content ORDER BY section')
     res.json(rows)
-  } catch (err) { next(err) }
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]) // table doesn't exist yet
+    next(err)
+  }
 })
 
 router.get('/site-content/:section', async (req, res, next) => {
@@ -269,12 +272,24 @@ router.get('/site-content/:section', async (req, res, next) => {
     const { rows } = await pool.query('SELECT data FROM site_content WHERE section = $1', [req.params.section])
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
     res.json(rows[0].data)
-  } catch (err) { next(err) }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(404).json({ error: 'TABLE_NOT_FOUND', message: 'Run seed-content.sql first' })
+    next(err)
+  }
 })
 
 router.put('/site-content/:section', async (req, res, next) => {
   try {
     const { data } = req.body
+    // Auto-create table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS site_content (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        section    VARCHAR(100) UNIQUE NOT NULL,
+        data       JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
     await pool.query(
       `INSERT INTO site_content (section, data) VALUES ($1, $2)
        ON CONFLICT (section) DO UPDATE SET data = $2, updated_at = NOW()`,

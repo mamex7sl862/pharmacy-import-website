@@ -21,7 +21,10 @@ router.get('/site/:section', async (req, res, next) => {
     )
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
     res.json(rows[0].data)
-  } catch (err) { next(err) }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(404).json({ error: 'NOT_FOUND' })
+    next(err)
+  }
 })
 
 // Admin testimonials CRUD (no auth middleware here — admin routes handle it)
