@@ -4,28 +4,32 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
 import useRFQStore from '../store/rfqStore'
 
-// Hero slides — each with its own image, label, headline accent, and subtitle
+// Hero slides — beautiful, relevant pharmaceutical/medical background images
 const HERO_SLIDES = [
   {
-    img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1800&q=85',
+    // Stunning blue-lit pharmaceutical laboratory with glassware
+    img: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=1800&q=90',
     badge: 'Global Distribution Excellence',
     accent: 'Import Solutions',
     subtitle: 'Supplying medical institutions worldwide with precision-sourced medications, surgical supplies, and laboratory equipment through a certified cold-chain network.',
   },
   {
-    img: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=1800&q=85',
+    // Beautiful pharmacy/medicine shelf with colorful bottles
+    img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=1800&q=90',
     badge: 'WHO-GMP Certified Sources',
     accent: 'Pharmaceutical Wholesale',
     subtitle: 'Every product in our catalog meets rigorous international standards including WHO, FDA, and EMA guidelines — from origin to delivery.',
   },
   {
-    img: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1800&q=85',
+    // Scientist in lab coat working with test tubes — blue tones
+    img: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=1800&q=90',
     badge: 'Cold Chain Specialists',
     accent: 'Temperature-Controlled Logistics',
     subtitle: 'IoT-monitored cold chain handling for temperature-sensitive pharmaceuticals. 2–8°C compliance guaranteed throughout the entire supply chain.',
   },
   {
-    img: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=1800&q=85',
+    // Modern hospital corridor / clinical environment
+    img: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1800&q=90',
     badge: 'Surgical & Medical Supplies',
     accent: 'Sterile & Certified',
     subtitle: 'Precision instruments, sterile disposables, and medical consumables for operating theaters and clinical environments worldwide.',
@@ -72,13 +76,13 @@ function HeroSlideshow() {
             src={s.img}
             alt=""
             className="w-full h-full object-cover"
-            style={{ opacity: 0.38 }}
+            style={{ opacity: 0.55 }}
           />
         </div>
       ))}
 
-      {/* Persistent dark overlay */}
-      <div className="absolute inset-0 z-[1] bg-gradient-to-br from-slate-900/90 via-blue-950/70 to-slate-900/85" />
+      {/* Persistent dark overlay — lighter so images show through */}
+      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-slate-900/75 via-slate-900/60 to-slate-900/80" />
 
       {/* Content — centered */}
       <div className="relative z-10 max-w-screen-2xl mx-auto px-8 w-full flex flex-col items-center text-center">
