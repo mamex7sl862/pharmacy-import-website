@@ -4,7 +4,6 @@ import Footer from './components/Footer'
 import Home from './pages/Home'
 import Products from './pages/Products'
 import About from './pages/About'
-import Categories from './pages/Categories'
 import Services from './pages/Services'
 import Contact from './pages/Contact'
 import RFQ from './pages/RFQ'
@@ -21,6 +20,7 @@ import RFQDetails from './pages/RFQDetails'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ProtectedRoute from './components/ProtectedRoute'
+import LiveChat from './components/LiveChat'
 
 export default function App() {
   return (
@@ -49,7 +49,6 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/about" element={<About />} />
-                <Route path="/categories" element={<Categories />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/rfq" element={<RFQ />} />
@@ -72,6 +71,7 @@ export default function App() {
           </>
         } />
       </Routes>
+      <LiveChat />
     </div>
   )
 }

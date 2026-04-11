@@ -20,7 +20,6 @@ export default function Footer() {
               { to: '/', label: 'Home' },
               { to: '/about', label: 'About Us' },
               { to: '/products', label: 'Products' },
-              { to: '/categories', label: 'Categories' },
               { to: '/services', label: 'Services' },
               { to: '/contact', label: 'Contact Us' },
             ].map((l) => (
