@@ -114,3 +114,8 @@ CREATE TABLE IF NOT EXISTS site_content (
   data       JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- RFQ sequence counter — prevents duplicate RFQ numbers under concurrent submissions
+CREATE TABLE IF NOT EXISTS rfq_sequences (
+  year     INTEGER PRIMARY KEY,
+  last_seq INTEGE
