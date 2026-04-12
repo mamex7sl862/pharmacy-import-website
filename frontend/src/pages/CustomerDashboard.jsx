@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useLocation } from 'react-router-dom'
 import api from '../lib/api'
 import useAuthStore from '../store/authStore'
 
@@ -14,6 +15,8 @@ const STATUS_LABEL = { NEW: 'Pending', UNDER_REVIEW: 'Under Review', QUOTATION_S
 
 export default function CustomerDashboard() {
   const { user, clearAuth } = useAuthStore()
+  const location = useLocation()
+  const newRfq = location.state?.newRfq // RFQ number passed after submission
   const { data, isLoading } = useQuery({
     queryKey: ['customer-rfqs'],
     queryFn: () => api.get('/customer/rfqs').then((r) => r.data),
@@ -85,6 +88,23 @@ export default function CustomerDashboard() {
 
       {/* Main content */}
       <main className="flex-1 p-6 md:p-10 pb-24 md:pb-10 min-w-0">
+
+        {/* RFQ submitted success banner */}
+        {newRfq && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-8 flex items-start gap-4">
+            <span className="material-symbols-outlined text-green-600 text-2xl flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+            <div className="flex-1">
+              <p className="font-headline font-bold text-green-800 mb-1">RFQ Submitted Successfully!</p>
+              <p className="text-sm text-green-700">
+                Your request <span className="font-mono font-bold">{newRfq}</span> has been received. Our team will respond within 4–24 hours.
+              </p>
+            </div>
+            <Link to="/track" className="flex-shrink-0 text-xs font-bold text-green-700 border border-green-300 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors">
+              Track RFQ
+            </Link>
+          </div>
+        )}
+
         {/* Welcome */}
         <section className="mb-10">
           <h1 className="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight mb-2">

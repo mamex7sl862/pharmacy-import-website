@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import useAuthStore from '../store/authStore'
 
@@ -19,6 +19,8 @@ const schema = z.object({
 
 export default function Register() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect') || null
   const { setAuth } = useAuthStore()
   const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) })
 
@@ -26,7 +28,7 @@ export default function Register() {
     mutationFn: (data) => api.post('/auth/register', data).then((r) => r.data),
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken)
-      navigate('/portal')
+      navigate(redirect || '/portal')
     },
   })
 

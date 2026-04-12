@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import useAuthStore from '../store/authStore'
 
@@ -13,6 +13,8 @@ const schema = z.object({
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect') || null
   const { setAuth } = useAuthStore()
   const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) })
 
@@ -20,7 +22,12 @@ export default function Login() {
     mutationFn: (data) => api.post('/auth/login', data).then((r) => r.data),
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken)
-      navigate(data.user.role === 'admin' ? '/admin' : '/portal')
+      // If came from RFQ page, go back there; otherwise go to portal/admin
+      if (redirect) {
+        navigate(redirect)
+      } else {
+        navigate(data.user.role === 'admin' ? '/admin' : '/portal')
+      }
     },
   })
 

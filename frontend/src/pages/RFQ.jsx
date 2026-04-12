@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
 import useRFQStore from '../store/rfqStore'
+import useAuthStore from '../store/authStore'
 
 const customerSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
@@ -46,9 +47,22 @@ function Stepper({ step }) {
 
 function Step1({ onNext }) {
   const { customerInfo, setCustomerInfo } = useRFQStore()
+  const { user } = useAuthStore()
+
+  // Pre-fill from logged-in user account
+  const defaults = {
+    fullName:     customerInfo.fullName     || user?.fullName     || '',
+    companyName:  customerInfo.companyName  || user?.companyName  || '',
+    businessType: customerInfo.businessType || user?.businessType || '',
+    email:        customerInfo.email        || user?.email        || '',
+    phone:        customerInfo.phone        || user?.phone        || '',
+    country:      customerInfo.country      || user?.country      || '',
+    city:         customerInfo.city         || user?.city         || '',
+  }
+
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(customerSchema),
-    defaultValues: customerInfo,
+    defaultValues: defaults,
   })
   const onSubmit = (data) => { setCustomerInfo(data); onNext() }
 
@@ -631,14 +645,70 @@ function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
 
 export default function RFQ() {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const { currentStep, setStep, customerInfo, selectedProducts, additionalInfo, resetRFQ } = useRFQStore()
+
+  // ── Auth gate — must be logged in to submit RFQ ───────────────────────────
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center px-4 py-16">
+        <div className="max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <span className="material-symbols-outlined text-primary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
+          </div>
+          <h1 className="font-headline font-extrabold text-3xl text-on-surface mb-3">
+            Account Required
+          </h1>
+          <p className="text-on-surface-variant text-lg mb-8 leading-relaxed">
+            You need to create an account or log in before submitting a Request for Quotation. This allows you to track your RFQ status and receive quotations.
+          </p>
+
+          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm mb-8 text-left space-y-3">
+            {[
+              { icon: 'track_changes', text: 'Track your RFQ status in real time' },
+              { icon: 'mark_email_read', text: 'Receive quotations directly to your account' },
+              { icon: 'history',       text: 'View all your past RFQ submissions' },
+              { icon: 'picture_as_pdf',text: 'Download quotation PDFs anytime' },
+            ].map((item) => (
+              <div key={item.text} className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
+                <span className="text-sm text-on-surface">{item.text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              to={`/register?redirect=/rfq`}
+              className="flex-1 signature-gradient text-white py-3.5 rounded-xl font-headline font-bold text-base shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-lg">person_add</span>
+              Create Account
+            </Link>
+            <Link
+              to={`/login?redirect=/rfq`}
+              className="flex-1 border-2 border-primary text-primary py-3.5 rounded-xl font-headline font-bold text-base hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-lg">login</span>
+              Sign In
+            </Link>
+          </div>
+
+          <p className="text-xs text-on-surface-variant mt-6">
+            Want to check an existing RFQ?{' '}
+            <Link to="/track" className="text-primary font-bold hover:underline">Track your RFQ →</Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const submitMutation = useMutation({
     mutationFn: async (payload) => {
       const files = useRFQStore.getState()._pendingFiles || []
 
       if (files.length > 0) {
-        // Send as multipart/form-data when files are attached
         const formData = new FormData()
         formData.append('customerInfo', JSON.stringify(payload.customerInfo))
         formData.append('products', JSON.stringify(payload.products))
@@ -649,14 +719,13 @@ export default function RFQ() {
         }).then((r) => r.data)
       }
 
-      // No files — send as JSON
       return api.post('/rfq', payload).then((r) => r.data)
     },
     onSuccess: (data) => {
       useRFQStore.getState()._pendingFiles = []
-      // Navigate FIRST, then reset — prevents blank re-render before navigation
-      navigate(`/rfq/success/${data.rfqNumber}`)
-      setTimeout(() => resetRFQ(), 100)
+      resetRFQ()
+      // Redirect to customer portal so they can track their RFQ
+      navigate('/portal', { state: { newRfq: data.rfqNumber } })
     },
   })
 

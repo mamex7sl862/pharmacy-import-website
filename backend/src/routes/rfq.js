@@ -89,19 +89,32 @@ router.post('/', upload.array('attachments', 5), async (req, res, next) => {
     const { customerInfo, products, additionalInfo = {} } = value
     const year = new Date().getFullYear()
 
+    // Identify logged-in customer from JWT if present
+    let customerId = null
+    const authHeader = req.headers.authorization
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken')
+        const decoded = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET)
+        customerId = decoded.id || null
+      } catch {} // guest submission — no token
+    }
+
     await client.query('BEGIN')
 
     const rfqNumber = await generateRFQNumber(client, year)
 
     const { rows: [rfq] } = await client.query(
       `INSERT INTO rfqs (
-        rfq_number, guest_full_name, guest_company, guest_business_type,
+        rfq_number, customer_id,
+        guest_full_name, guest_company, guest_business_type,
         guest_email, guest_phone, guest_country, guest_city,
         requested_delivery_date, shipping_method, message, status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'NEW')
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'NEW')
       RETURNING id, rfq_number AS "rfqNumber", submitted_at AS "submittedAt"`,
       [
         rfqNumber,
+        customerId,
         customerInfo.fullName, customerInfo.companyName, customerInfo.businessType,
         customerInfo.email, customerInfo.phone, customerInfo.country, customerInfo.city,
         additionalInfo.requestedDeliveryDate || null,
