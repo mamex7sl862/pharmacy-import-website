@@ -645,7 +645,7 @@ function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
 
 export default function RFQ() {
   const navigate = useNavigate()
-  const { user, updateUser } = useAuthStore()
+  const { user, updateUser, clearAuth } = useAuthStore()
   const { currentStep, setStep, customerInfo, setCustomerInfo, selectedProducts, additionalInfo, resetRFQ } = useRFQStore()
 
   // Determine if user has already filled their profile (returning user)
@@ -764,7 +764,22 @@ export default function RFQ() {
         </div>
         <div className="flex items-center space-x-4">
           <span className="material-symbols-outlined text-on-surface-variant cursor-pointer">notifications</span>
-          <span className="material-symbols-outlined text-on-surface-variant cursor-pointer">account_circle</span>
+          <div className="relative group">
+            <span className="material-symbols-outlined text-on-surface-variant cursor-pointer select-none">account_circle</span>
+            <div className="absolute right-0 top-8 w-48 bg-white rounded-xl shadow-lg border border-outline-variant/20 py-2 hidden group-hover:block z-50">
+              <div className="px-4 py-2 border-b border-outline-variant/20">
+                <p className="text-xs font-bold text-on-surface truncate">{user?.fullName}</p>
+                <p className="text-xs text-on-surface-variant truncate">{user?.email}</p>
+              </div>
+              <button
+                onClick={clearAuth}
+                className="w-full text-left px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-base">logout</span>
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
       </nav>
 
