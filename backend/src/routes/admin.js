@@ -175,7 +175,11 @@ router.post('/rfqs/:id/respond', async (req, res, next) => {
     }
 
     const pdfBuffer = await generateRFQPDF(pdfData)
-    await sendQuotationEmail(rfq.customerEmail, rfq.rfq_number, pdfBuffer)
+
+    // Send email non-blocking — don't fail the whole request if email is down
+    sendQuotationEmail(rfq.customerEmail, rfq.rfq_number, pdfBuffer)
+      .catch((err) => console.error('Quotation email failed (non-fatal):', err.message))
+
     await pool.query(
       "UPDATE rfqs SET status = 'QUOTATION_SENT', updated_at = NOW() WHERE id = $1",
       [rfq.id]
