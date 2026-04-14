@@ -759,8 +759,6 @@ export default function RFQ() {
       <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md h-16 flex justify-between items-center px-8">
         <Link to="/" className="text-xl font-bold tracking-tight text-primary font-headline">PharmaLink Pro</Link>
         <div className="hidden md:flex items-center space-x-8">
-          <Link to="/products" className="text-on-surface-variant hover:text-primary transition-colors font-medium">Products</Link>
-          <Link to="/compare" className="text-on-surface-variant hover:text-primary transition-colors font-medium">Compare</Link>
           <Link to="/portal" className="text-primary border-b-2 border-primary pb-1 font-medium">RFQ History</Link>
         </div>
         <div className="flex items-center space-x-4">
@@ -778,6 +776,10 @@ export default function RFQ() {
                     <p className="text-xs font-bold text-on-surface truncate">{user?.fullName}</p>
                     <p className="text-xs text-on-surface-variant truncate">{user?.email}</p>
                   </div>
+                  <Link to="/portal" onClick={() => setProfileOpen(false)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors">
+                    <span className="material-symbols-outlined text-base">dashboard</span>
+                    My Dashboard
+                  </Link>
                   <button
                     onClick={() => { clearAuth(); navigate('/login') }}
                     className="w-full text-left px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors flex items-center gap-2"
