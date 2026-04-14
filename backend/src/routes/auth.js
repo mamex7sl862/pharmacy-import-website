@@ -8,11 +8,6 @@ const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(8).required(),
   fullName: Joi.string().min(2).required(),
-  companyName: Joi.string().min(2).required(),
-  businessType: Joi.string().required(),
-  phone: Joi.string().required(),
-  country: Joi.string().required(),
-  city: Joi.string().required(),
 })
 
 function signToken(user) {
@@ -34,14 +29,14 @@ router.post('/register', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(value.password, 12)
     const { rows } = await pool.query(
-      `INSERT INTO users (email, password_hash, full_name, company_name, business_type, phone, country, city)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, email, full_name, company_name, business_type, role`,
-      [value.email, passwordHash, value.fullName, value.companyName, value.businessType, value.phone, value.country, value.city]
+      `INSERT INTO users (email, password_hash, full_name)
+       VALUES ($1,$2,$3) RETURNING id, email, full_name, role`,
+      [value.email, passwordHash, value.fullName]
     )
     const user = rows[0]
     res.status(201).json({
       accessToken: signToken(user),
-      user: { id: user.id, email: user.email, fullName: user.full_name, companyName: user.company_name, role: user.role },
+      user: { id: user.id, email: user.email, fullName: user.full_name, role: user.role },
     })
   } catch (err) { next(err) }
 })

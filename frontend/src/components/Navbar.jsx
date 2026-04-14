@@ -44,16 +44,6 @@ export default function Navbar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-3 md:gap-4">
-          {/* Search */}
-          <div className="relative hidden lg:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
-            <input
-              className="pl-10 pr-4 py-2 bg-surface-container-high border-none rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-              placeholder="Search pharmaceuticals..."
-              type="text"
-            />
-          </div>
-
           {/* RFQ badge */}
           <Link to="/rfq" className="relative p-2 text-on-surface-variant hover:text-primary transition-colors">
             <span className="material-symbols-outlined">description</span>
@@ -72,9 +62,14 @@ export default function Navbar() {
               <button onClick={clearAuth} className="text-sm text-outline hover:text-error transition-colors hidden sm:block">Logout</button>
             </div>
           ) : (
-            <Link to="/rfq" className="hidden sm:block signature-gradient text-white px-4 md:px-6 py-2 md:py-2.5 rounded-lg font-headline font-bold text-xs md:text-sm transition-all active:scale-95 shadow-md whitespace-nowrap">
-              Request Quotation
-            </Link>
+            <div className="hidden sm:flex items-center gap-2">
+              <Link to="/rfq" className="signature-gradient text-white px-4 md:px-6 py-2 md:py-2.5 rounded-lg font-headline font-bold text-xs md:text-sm transition-all active:scale-95 shadow-md whitespace-nowrap">
+                Request Quotation
+              </Link>
+              <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-900 px-4 py-2 rounded-lg transition-colors">
+                Sign In
+              </Link>
+            </div>
           )}
         </div>
       </div>
@@ -95,9 +90,12 @@ export default function Navbar() {
                   <button onClick={clearAuth} className="text-sm text-left text-red-500">Logout</button>
                 </div>
               ) : (
-                <Link to="/rfq" className="block text-center signature-gradient text-white px-4 py-3 rounded-lg font-headline font-bold text-sm shadow-md">
-                  Request Quotation
-                </Link>
+                <div className="flex flex-col gap-3">
+                  <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-900">Sign In</Link>
+                  <Link to="/rfq" className="block text-center signature-gradient text-white px-4 py-3 rounded-lg font-headline font-bold text-sm shadow-md">
+                    Request Quotation
+                  </Link>
+                </div>
               )}
             </div>
           </div>
