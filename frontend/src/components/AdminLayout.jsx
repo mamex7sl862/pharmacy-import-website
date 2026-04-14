@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import useAuthStore from '../store/authStore'
 
 const NAV = [
@@ -14,6 +14,14 @@ export default function AdminLayout({ children, title, subtitle }) {
   const navigate = useNavigate()
   const { user, clearAuth } = useAuthStore()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const active = NAV.find((n) =>
     n.to === '/admin' ? location.pathname === '/admin' : location.pathname.startsWith(n.to)
@@ -40,18 +48,33 @@ export default function AdminLayout({ children, title, subtitle }) {
           </Link>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-          <span className="text-sm text-on-surface-variant hidden md:block">
-            {user?.fullName || 'Admin'}
-          </span>
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">
-            {user?.fullName?.[0] || 'A'}
+          <div className="relative" ref={profileRef}>
+            <button onClick={() => setProfileOpen((o) => !o)} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">
+                {user?.fullName?.[0] || 'A'}
+              </div>
+              <span className="text-sm text-on-surface-variant hidden md:block">{user?.fullName || 'Admin'}</span>
+            </button>
+            {profileOpen && (
+              <div className="absolute right-0 top-11 w-52 bg-white rounded-xl shadow-lg border border-outline-variant/20 py-2 z-50">
+                <div className="px-4 py-2 border-b border-outline-variant/20">
+                  <p className="text-xs font-bold text-on-surface truncate">{user?.fullName}</p>
+                  <p className="text-xs text-on-surface-variant truncate">{user?.email}</p>
+                </div>
+                <Link to="/admin" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors">
+                  <span className="material-symbols-outlined text-base">dashboard</span>
+                  Admin Dashboard
+                </Link>
+                <button
+                  onClick={() => { clearAuth(); navigate('/login') }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">logout</span>
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => { clearAuth(); navigate('/login') }}
-            className="text-sm text-outline hover:text-error transition-colors ml-1 md:ml-2"
-          >
-            Sign out
-          </button>
         </div>
       </header>
 

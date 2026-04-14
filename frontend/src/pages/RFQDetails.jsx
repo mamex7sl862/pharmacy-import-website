@@ -138,22 +138,6 @@ export default function RFQDetails() {
             <p className="text-xs text-slate-500">{companyName} · {customerName}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={exportPDF}
-            className="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-lg text-sm font-semibold text-on-surface hover:bg-slate-50 transition-colors"
-          >
-            <span className="material-symbols-outlined text-base">picture_as_pdf</span>
-            Export PDF
-          </button>
-          <button
-            onClick={() => sendQuotation.mutate()}
-            disabled={sendQuotation.isPending || quotationSent}
-            className="signature-gradient text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70"
-          >
-            {sendQuotation.isPending ? 'Sending...' : quotationSent ? '✓ Sent' : 'Send Quotation'}
-          </button>
-        </div>
       </header>
 
       <main className="pt-24 pb-32 px-4 max-w-5xl mx-auto space-y-6">
@@ -485,7 +469,16 @@ export default function RFQDetails() {
               Export PDF
             </button>
             <button
-              onClick={() => sendQuotation.mutate()}
+              onClick={() => {
+                const allPriced = rfq?.items?.every((item) => itemPrices[item.id]?.unitPrice)
+                if (!allPriced) {
+                  setPriceError('Please fill in the unit price for all items before sending a quotation.')
+                  document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' })
+                  return
+                }
+                setPriceError('')
+                sendQuotation.mutate()
+              }}
               disabled={sendQuotation.isPending || quotationSent}
               className="flex-1 sm:flex-none signature-gradient text-white px-8 py-3 rounded-lg text-sm font-extrabold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-70"
             >
