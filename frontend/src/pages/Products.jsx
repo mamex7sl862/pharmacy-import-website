@@ -176,7 +176,7 @@ export default function Products() {
 
       <main className="pt-8 pb-32 px-8 max-w-[1600px] mx-auto flex gap-12">
         {/* Sidebar */}
-        <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-24 h-[calc(100vh-8rem)]">
+        <aside className="hidden lg:flex flex-col w-64 flex-shrink-0">
           <div className="mb-8">
             <h2 className="font-headline font-extrabold text-2xl tracking-tight text-primary">Categories</h2>
             <p className="text-on-surface-variant text-sm mt-1">Filter by Therapeutic Class</p>
