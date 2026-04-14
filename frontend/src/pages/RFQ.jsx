@@ -64,7 +64,7 @@ function Step1({ onNext }) {
     resolver: zodResolver(customerSchema),
     defaultValues: defaults,
   })
-  const onSubmit = (data) => { setCustomerInfo(data); onNext() }
+  const onSubmit = (data) => { setCustomerInfo(data); onNext(data) }
 
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-10 shadow-sm">
@@ -645,26 +645,27 @@ function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
 
 export default function RFQ() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
   const { currentStep, setStep, customerInfo, setCustomerInfo, selectedProducts, additionalInfo, resetRFQ } = useRFQStore()
 
-  // Auto-populate customerInfo from logged-in user and skip step 1
+  // Determine if user has already filled their profile (returning user)
+  const hasProfile = !!(user?.companyName && user?.phone && user?.businessType)
+
+  // On mount: if returning user, pre-fill customerInfo and skip step 1
   useEffect(() => {
-    if (user && !customerInfo.email) {
+    if (user) {
       setCustomerInfo({
-        fullName: user.fullName || '',
-        companyName: user.companyName || '',
+        fullName:     user.fullName     || '',
+        companyName:  user.companyName  || '',
         businessType: user.businessType || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        country: user.country || '',
-        city: user.city || '',
+        email:        user.email        || '',
+        phone:        user.phone        || '',
+        country:      user.country      || '',
+        city:         user.city         || '',
       })
+      if (hasProfile && currentStep === 1) setStep(2)
     }
-    if (user && currentStep === 1) {
-      setStep(2)
-    }
-  }, [])
+  }, [user?.id])
 
   // ── Auth gate — must be logged in to submit RFQ ───────────────────────────
   if (!user) {
@@ -781,8 +782,15 @@ export default function RFQ() {
 
           <Stepper step={currentStep} />
 
-          {currentStep === 1 && <Step1 onNext={() => setStep(2)} />}
-          {currentStep === 2 && <Step2 onNext={() => setStep(3)} onBack={() => user ? setStep(2) : setStep(1)} />}
+          {currentStep === 1 && <Step1 onNext={async (data) => {
+            // Save profile info to backend so future RFQs skip this step
+            try {
+              const { data: updated } = await api.put('/customer/profile', data)
+              updateUser(updated)
+            } catch (_) {}
+            setStep(2)
+          }} />}
+          {currentStep === 2 && <Step2 onNext={() => setStep(3)} onBack={() => hasProfile ? setStep(2) : setStep(1)} />}
           {currentStep === 3 && <Step3 onNext={() => setStep(4)} onBack={() => setStep(2)} />}
           {currentStep === 4 && <Step4 onBack={() => setStep(3)} onSubmit={handleFinalSubmit} isLoading={submitMutation.isPending} isError={submitMutation.isError} errorMessage={submitMutation.error?.response?.data?.message || submitMutation.error?.message} />}
         </div>

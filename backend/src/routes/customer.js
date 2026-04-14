@@ -5,6 +5,41 @@ const { generateRFQPDF } = require('../services/pdf')
 
 router.use(verifyToken)
 
+// GET /api/customer/profile
+router.get('/profile', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, email, full_name AS "fullName", company_name AS "companyName",
+              business_type AS "businessType", phone, country, city, role
+       FROM users WHERE id = $1`,
+      [req.user.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    res.json(rows[0])
+  } catch (err) { next(err) }
+})
+
+// PUT /api/customer/profile
+router.put('/profile', async (req, res, next) => {
+  try {
+    const { companyName, businessType, phone, country, city } = req.body
+    const { rows } = await pool.query(
+      `UPDATE users SET
+        company_name  = COALESCE($1, company_name),
+        business_type = COALESCE($2, business_type),
+        phone         = COALESCE($3, phone),
+        country       = COALESCE($4, country),
+        city          = COALESCE($5, city),
+        updated_at    = NOW()
+       WHERE id = $6
+       RETURNING id, email, full_name AS "fullName", company_name AS "companyName",
+                 business_type AS "businessType", phone, country, city, role`,
+      [companyName || null, businessType || null, phone || null, country || null, city || null, req.user.id]
+    )
+    res.json(rows[0])
+  } catch (err) { next(err) }
+})
+
 // GET /api/customer/rfqs
 router.get('/rfqs', async (req, res, next) => {
   try {
