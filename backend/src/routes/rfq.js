@@ -35,12 +35,12 @@ const upload = multer({
 const rfqSchema = Joi.object({
   customerInfo: Joi.object({
     fullName:     Joi.string().min(2).required(),
-    companyName:  Joi.string().min(2).required(),
-    businessType: Joi.string().required(),
+    companyName:  Joi.string().allow('', null).optional(),
+    businessType: Joi.string().allow('', null).optional(),
     email:        Joi.string().email().required(),
-    phone:        Joi.string().min(5).required(),
-    country:      Joi.string().required(),
-    city:         Joi.string().required(),
+    phone:        Joi.string().allow('', null).optional(),
+    country:      Joi.string().allow('', null).optional(),
+    city:         Joi.string().allow('', null).optional(),
   }).required(),
   products: Joi.array().items(
     Joi.object({

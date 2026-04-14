@@ -7,8 +7,15 @@ const useAuthStore = create(
       user: null,
       accessToken: null,
 
-      setAuth: (user, accessToken) => set({ user, accessToken }),
-      clearAuth: () => set({ user: null, accessToken: null }),
+      setAuth: (user, accessToken) => {
+        // Clear RFQ store when a new user logs in to avoid data leaking between accounts
+        try { localStorage.removeItem('rfq-draft') } catch (_) {}
+        set({ user, accessToken })
+      },
+      clearAuth: () => {
+        try { localStorage.removeItem('rfq-draft') } catch (_) {}
+        set({ user: null, accessToken: null })
+      },
     }),
     { name: 'auth' }
   )
