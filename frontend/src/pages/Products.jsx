@@ -134,8 +134,15 @@ export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [toast, setToast] = useState(null)
+  const [selectedManufacturers, setSelectedManufacturers] = useState([])
   const category = searchParams.get('category') || ''
   const { addProduct, selectedProducts } = useRFQStore()
+
+  const toggleManufacturer = (m) => {
+    setSelectedManufacturers((prev) =>
+      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
+    )
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', search, category],
@@ -153,14 +160,15 @@ export default function Products() {
   const rawProducts = data?.items?.length > 0 ? data.items : STATIC_PRODUCTS
 
   // Client-side filter for static products (DB already filters server-side)
-  const products = data?.items?.length > 0
-    ? rawProducts
-    : rawProducts.filter((p) => {
-        const matchCat = !category || p.category === category
-        const q = search.toLowerCase()
-        const matchSearch = !q || p.name.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.genericName?.toLowerCase().includes(q)
-        return matchCat && matchSearch
-      })
+  const products = (data?.items?.length > 0 ? rawProducts : rawProducts.filter((p) => {
+    const matchCat = !category || p.category === category
+    const q = search.toLowerCase()
+    const matchSearch = !q || p.name.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.genericName?.toLowerCase().includes(q)
+    return matchCat && matchSearch
+  })).filter((p) => {
+    if (selectedManufacturers.length === 0) return true
+    return selectedManufacturers.some((m) => p.brand?.toLowerCase().includes(m.toLowerCase()))
+  })
 
   return (
     <div className="bg-surface font-body text-on-surface">
@@ -189,21 +197,30 @@ export default function Products() {
               </button>
             ))}
           </div>
-          <div className="mt-12">
+          <div className="mt-8">
             <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant/70 mb-4">Manufacturer</h3>
             <div className="space-y-3">
               {MANUFACTURERS.map((m) => (
                 <label key={m} className="flex items-center gap-3 cursor-pointer group">
-                  <input type="checkbox" className="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
-                  <span className="text-sm text-on-surface group-hover:text-primary transition-colors">{m}</span>
+                  <input
+                    type="checkbox"
+                    checked={selectedManufacturers.includes(m)}
+                    onChange={() => toggleManufacturer(m)}
+                    className="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                  />
+                  <span className={`text-sm transition-colors ${selectedManufacturers.includes(m) ? 'text-primary font-bold' : 'text-on-surface group-hover:text-primary'}`}>{m}</span>
                 </label>
               ))}
             </div>
+            {selectedManufacturers.length > 0 && (
+              <button
+                onClick={() => setSelectedManufacturers([])}
+                className="mt-4 text-xs text-error hover:underline font-medium"
+              >
+                Clear filter
+              </button>
+            )}
           </div>
-          <button className="mt-auto text-primary font-bold text-sm flex items-center gap-2 py-4 border-t border-slate-200">
-            View All Filters
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
-          </button>
         </aside>
 
         {/* Main */}
