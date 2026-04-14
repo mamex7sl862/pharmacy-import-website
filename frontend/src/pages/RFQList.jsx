@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import AdminLayout from '../components/AdminLayout'
@@ -13,8 +13,9 @@ const STATUS_BADGE = {
 
 export default function RFQList() {
   const [filters, setFilters] = useState({ rfqNumber: '', customerName: '', status: '', dateFrom: '', dateTo: '', page: 1 })
-  const [deleteConfirm, setDeleteConfirm] = useState(null) // rfq object to delete
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-rfqs', filters],
@@ -175,7 +176,13 @@ export default function RFQList() {
                       <td className="py-4 px-4">
                         <select
                           value={rfq.status}
-                          onChange={(e) => updateStatus.mutate({ id: rfq.id, status: e.target.value })}
+                          onChange={(e) => {
+                            if (e.target.value === 'QUOTATION_SENT') {
+                              navigate(`/admin/rfqs/${rfq.id}`)
+                              return
+                            }
+                            updateStatus.mutate({ id: rfq.id, status: e.target.value })
+                          }}
                           className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border-none outline-none cursor-pointer ${STATUS_BADGE[rfq.status]}`}
                         >
                           <option value="NEW">New</option>

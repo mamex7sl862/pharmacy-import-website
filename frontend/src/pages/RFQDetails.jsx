@@ -49,10 +49,25 @@ export default function RFQDetails() {
     }
   }, [rfq])
 
+  const [priceError, setPriceError] = useState('')
+
   const updateStatus = useMutation({
     mutationFn: (status) => api.patch(`/admin/rfqs/${id}/status`, { status }),
     onSuccess: () => qc.invalidateQueries(['admin-rfq', id]),
   })
+
+  const handleStatusChange = (status) => {
+    if (status === 'QUOTATION_SENT') {
+      const allPriced = rfq?.items?.every((item) => itemPrices[item.id]?.unitPrice)
+      if (!allPriced) {
+        setPriceError('Please fill in the unit price for all items before sending a quotation.')
+        document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' })
+        return
+      }
+    }
+    setPriceError('')
+    updateStatus.mutate(status)
+  }
 
   const saveNotes = useMutation({
     mutationFn: () => api.patch(`/admin/rfqs/${id}/notes`, { notes }),
@@ -171,7 +186,7 @@ export default function RFQDetails() {
               <label className="text-xs font-bold text-outline uppercase tracking-widest">Change Status</label>
               <select
                 value={rfq.status}
-                onChange={(e) => updateStatus.mutate(e.target.value)}
+                onChange={(e) => handleStatusChange(e.target.value)}
                 className="px-4 py-2 bg-surface-container-high rounded-lg text-sm font-semibold text-on-surface outline-none border-none cursor-pointer"
               >
                 <option value="NEW">New</option>
@@ -181,6 +196,12 @@ export default function RFQDetails() {
               </select>
             </div>
           </div>
+          {priceError && (
+            <div className="mt-4 p-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-sm flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-amber-600">warning</span>
+              {priceError}
+            </div>
+          )}
           {sendQuotation.isError && (
             <div className="mt-4 p-3 bg-error-container text-on-error-container rounded-lg text-sm">
               Failed to send quotation: {sendQuotation.error?.response?.data?.message || sendQuotation.error?.message}
@@ -199,7 +220,7 @@ export default function RFQDetails() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Products */}
-            <section className="bg-surface-container-low rounded-xl overflow-hidden">
+            <section id="products-section" className="bg-surface-container-low rounded-xl overflow-hidden">
               <div className="p-5 border-b border-white/20 bg-white/40 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary">medical_services</span>
