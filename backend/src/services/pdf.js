@@ -2,162 +2,229 @@ const PDFDocument = require('pdfkit')
 
 function generateRFQPDF(rfq) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50, size: 'A4' })
+    const doc = new PDFDocument({ margin: 0, size: 'A4' })
     const chunks = []
     doc.on('data', (c) => chunks.push(c))
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    const primary = '#003f87'
-    const muted   = '#727784'
-    const dark    = '#191c1d'
+    const W = doc.page.width   // 595
+    const H = doc.page.height  // 842
+    const M = 45               // margin
 
-    // ── Header ──────────────────────────────────────────────────────────────
-    doc.rect(0, 0, doc.page.width, 80).fill(primary)
-    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(22)
-       .text('PharmaLink Wholesale', 50, 25)
-    doc.fillColor('#bbd0ff').font('Helvetica').fontSize(10)
-       .text('Request for Quotation', 50, 52)
+    const navy   = '#0a2463'
+    const blue   = '#1e5fa8'
+    const accent = '#3a86ff'
+    const light  = '#e8f0fe'
+    const muted  = '#6b7280'
+    const dark   = '#111827'
+    const white  = '#ffffff'
+    const green  = '#059669'
+    const border = '#e5e7eb'
 
-    // RFQ number top-right
-    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(11)
-       .text(rfq.rfqNumber || rfq.rfq_number || '', 0, 30, { align: 'right', width: doc.page.width - 50 })
-    doc.fillColor('#bbd0ff').font('Helvetica').fontSize(9)
-       .text(`Submitted: ${new Date(rfq.submittedAt || rfq.submitted_at).toLocaleDateString()}`, 0, 48, { align: 'right', width: doc.page.width - 50 })
+    // ── HEADER BAND ──────────────────────────────────────────────────────────
+    doc.rect(0, 0, W, 110).fill(navy)
 
-    doc.moveDown(3)
+    // Diagonal accent stripe
+    doc.save()
+    doc.rect(0, 0, W, 110).clip()
+    doc.moveTo(W - 160, 0).lineTo(W, 0).lineTo(W, 110).lineTo(W - 220, 110).fill(blue)
+    doc.moveTo(W - 80, 0).lineTo(W, 0).lineTo(W, 110).lineTo(W - 120, 110).fill(accent).opacity(0.4)
+    doc.restore()
 
-    // ── Customer Info ────────────────────────────────────────────────────────
-    doc.fillColor(primary).font('Helvetica-Bold').fontSize(12).text('Customer Information')
-    doc.moveTo(50, doc.y + 4).lineTo(doc.page.width - 50, doc.y + 4).strokeColor('#e7e8e9').stroke()
-    doc.moveDown(0.8)
+    // Logo text
+    doc.fillColor(white).font('Helvetica-Bold').fontSize(26)
+       .text('PharmaLink', M, 28, { continued: true })
+       .font('Helvetica').fillColor('#93c5fd').text(' Wholesale')
 
-    const customerFields = [
-      ['Name',          rfq.customerName],
-      ['Company',       rfq.companyName],
-      ['Email',         rfq.email],
-      ['Phone',         rfq.phone],
-      ['Location',      [rfq.city, rfq.country].filter(Boolean).join(', ')],
-    ]
+    doc.fillColor('#93c5fd').font('Helvetica').fontSize(10)
+       .text('Official Quotation Document', M, 62)
 
-    customerFields.forEach(([label, value]) => {
-      if (!value) return
-      doc.fillColor(muted).font('Helvetica-Bold').fontSize(8).text(label.toUpperCase(), { continued: false })
-      doc.fillColor(dark).font('Helvetica').fontSize(10).text(value)
-      doc.moveDown(0.3)
+    // RFQ badge top-right
+    const badgeX = W - 180
+    doc.roundedRect(badgeX, 22, 140, 66, 8).fill('rgba(255,255,255,0.12)')
+    doc.fillColor(white).font('Helvetica-Bold').fontSize(13)
+       .text(rfq.rfqNumber || rfq.rfq_number || '', badgeX, 32, { width: 140, align: 'center' })
+    doc.fillColor('#93c5fd').font('Helvetica').fontSize(9)
+       .text('QUOTATION NUMBER', badgeX, 50, { width: 140, align: 'center' })
+    const dateStr = rfq.submittedAt || rfq.submitted_at
+      ? new Date(rfq.submittedAt || rfq.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
+    doc.fillColor('#bfdbfe').font('Helvetica').fontSize(8)
+       .text(dateStr, badgeX, 66, { width: 140, align: 'center' })
+
+    let y = 128
+
+    // ── STATUS RIBBON ────────────────────────────────────────────────────────
+    doc.rect(0, 110, W, 18).fill(accent)
+    doc.fillColor(white).font('Helvetica-Bold').fontSize(7.5)
+       .text('OFFICIAL QUOTATION  ·  CONFIDENTIAL  ·  PHARMALINK WHOLESALE', 0, 115, { width: W, align: 'center' })
+
+    // ── TWO-COLUMN INFO SECTION ──────────────────────────────────────────────
+    const colW = (W - M * 2 - 20) / 2
+
+    // Left card: Customer Info
+    doc.roundedRect(M, y, colW, 130, 6).fill(light)
+    doc.fillColor(navy).font('Helvetica-Bold').fontSize(10)
+       .text('CUSTOMER INFORMATION', M + 14, y + 14)
+    doc.moveTo(M + 14, y + 28).lineTo(M + colW - 14, y + 28).strokeColor(accent).lineWidth(1.5).stroke()
+
+    const custFields = [
+      ['Name',     rfq.customerName],
+      ['Company',  rfq.companyName],
+      ['Email',    rfq.email],
+      ['Phone',    rfq.phone],
+      ['Location', [rfq.city, rfq.country].filter(Boolean).join(', ')],
+    ].filter(([, v]) => v)
+
+    let cy = y + 36
+    custFields.forEach(([label, value]) => {
+      doc.fillColor(muted).font('Helvetica-Bold').fontSize(7).text(label.toUpperCase(), M + 14, cy)
+      doc.fillColor(dark).font('Helvetica').fontSize(9).text(value, M + 14, cy + 9, { width: colW - 28 })
+      cy += 22
     })
 
-    doc.moveDown(0.5)
+    // Right card: Quotation Details
+    const rx = M + colW + 20
+    doc.roundedRect(rx, y, colW, 130, 6).fill(light)
+    doc.fillColor(navy).font('Helvetica-Bold').fontSize(10)
+       .text('QUOTATION DETAILS', rx + 14, y + 14)
+    doc.moveTo(rx + 14, y + 28).lineTo(rx + colW - 14, y + 28).strokeColor(accent).lineWidth(1.5).stroke()
 
-    // ── Products Table ───────────────────────────────────────────────────────
-    doc.fillColor(primary).font('Helvetica-Bold').fontSize(12).text('Requested Products')
-    doc.moveTo(50, doc.y + 4).lineTo(doc.page.width - 50, doc.y + 4).strokeColor('#e7e8e9').stroke()
-    doc.moveDown(0.8)
+    const deliveryDate = rfq.requestedDeliveryDate || rfq.requested_delivery_date
+    const shippingMethod = rfq.shippingMethod || rfq.shipping_method
+    const detailFields = [
+      ['Issue Date',      dateStr],
+      ['Delivery By',     deliveryDate || 'To be confirmed'],
+      ['Shipping Method', shippingMethod || 'To be confirmed'],
+      ['Valid For',       '30 days from issue date'],
+    ]
 
-    const hasPrice = (rfq.items || []).some((i) => i.unitPrice != null)
-    const currency = (rfq.items || [])[0]?.currency || 'USD'
+    let dy = y + 36
+    detailFields.forEach(([label, value]) => {
+      doc.fillColor(muted).font('Helvetica-Bold').fontSize(7).text(label.toUpperCase(), rx + 14, dy)
+      doc.fillColor(dark).font('Helvetica').fontSize(9).text(value, rx + 14, dy + 9, { width: colW - 28 })
+      dy += 22
+    })
 
-    // Table header
-    const cols = hasPrice
-      ? { name: 50, brand: 200, qty: 330, unit: 385, price: 435, total: 500 }
-      : { name: 50, brand: 230, qty: 360, unit: 420, notes: 470 }
+    y += 148
 
-    const headerY = doc.y
-    doc.rect(50, headerY - 4, doc.page.width - 100, 20).fill('#f3f4f5')
-    doc.fillColor(muted).font('Helvetica-Bold').fontSize(8)
-    doc.text('PRODUCT NAME', cols.name,  headerY, { width: 145 })
-    doc.text('BRAND',        cols.brand, headerY, { width: 125 })
-    doc.text('QTY',          cols.qty,   headerY, { width: 50 })
-    doc.text('UNIT',         cols.unit,  headerY, { width: 45 })
-    if (hasPrice) {
-      doc.text(`UNIT PRICE (${currency})`, cols.price, headerY, { width: 60 })
-      doc.text('TOTAL',      cols.total, headerY, { width: 60 })
-    } else {
-      doc.text('NOTES',      cols.notes, headerY, { width: 80 })
-    }
-    doc.moveDown(1.2)
+    // ── PRODUCTS TABLE ───────────────────────────────────────────────────────
+    doc.fillColor(navy).font('Helvetica-Bold').fontSize(12).text('Quoted Products & Pricing', M, y)
+    doc.moveTo(M, y + 16).lineTo(W - M, y + 16).strokeColor(accent).lineWidth(2).stroke()
+    y += 24
 
     const items = rfq.items || []
+    const hasPrice = items.some((i) => i.unitPrice != null && i.unitPrice !== '')
+    const currency = items[0]?.currency || 'USD'
+
+    // Table header
+    const tH = 24
+    doc.rect(M, y, W - M * 2, tH).fill(navy)
+
+    // Column positions
+    const c = {
+      num:   M + 8,
+      name:  M + 30,
+      brand: M + 200,
+      qty:   M + 320,
+      unit:  M + 365,
+      price: M + 415,
+      total: M + 465,
+    }
+    const tableW = W - M * 2
+
+    doc.fillColor(white).font('Helvetica-Bold').fontSize(7.5)
+    doc.text('#',            c.num,   y + 8, { width: 20 })
+    doc.text('PRODUCT NAME', c.name,  y + 8, { width: 165 })
+    doc.text('BRAND',        c.brand, y + 8, { width: 115 })
+    doc.text('QTY',          c.qty,   y + 8, { width: 40, align: 'right' })
+    doc.text('UNIT',         c.unit,  y + 8, { width: 45 })
+    if (hasPrice) {
+      doc.text(`UNIT PRICE`,  c.price, y + 8, { width: 55, align: 'right' })
+      doc.text('TOTAL',       c.total, y + 8, { width: 55, align: 'right' })
+    }
+    y += tH
+
     let grandTotal = 0
     items.forEach((item, i) => {
-      const rowY = doc.y
-      if (i % 2 === 0) doc.rect(50, rowY - 2, doc.page.width - 100, 18).fill('#fafafa')
-      doc.fillColor(dark).font('Helvetica').fontSize(9)
-      doc.text(item.productName || item.product_name || '', cols.name,  rowY, { width: 145 })
-      doc.text(item.brand || '—',                           cols.brand, rowY, { width: 125 })
-      doc.text(String(item.quantity),                       cols.qty,   rowY, { width: 50 })
-      doc.text(item.unit || 'units',                        cols.unit,  rowY, { width: 45 })
+      const rowH = 28
+      // Alternating rows
+      doc.rect(M, y, tableW, rowH).fill(i % 2 === 0 ? white : '#f8faff')
+
+      const up = item.unitPrice != null && item.unitPrice !== '' ? parseFloat(item.unitPrice) : null
+      const lineTotal = up != null ? up * item.quantity : null
+      if (lineTotal != null) grandTotal += lineTotal
+
+      doc.fillColor(accent).font('Helvetica-Bold').fontSize(8)
+         .text(String(i + 1).padStart(2, '0'), c.num, y + 10, { width: 20 })
+
+      doc.fillColor(dark).font('Helvetica-Bold').fontSize(8.5)
+         .text(item.productName || item.product_name || '', c.name, y + 10, { width: 165 })
+
+      doc.fillColor(muted).font('Helvetica').fontSize(8)
+         .text(item.brand || '—', c.brand, y + 10, { width: 115 })
+
+      doc.fillColor(navy).font('Helvetica-Bold').fontSize(9)
+         .text(String(item.quantity), c.qty, y + 10, { width: 40, align: 'right' })
+
+      doc.fillColor(muted).font('Helvetica').fontSize(8)
+         .text(item.unit || 'units', c.unit, y + 10, { width: 45 })
+
       if (hasPrice) {
-        const up = item.unitPrice != null ? parseFloat(item.unitPrice) : null
-        const lineTotal = up != null ? up * item.quantity : null
-        if (lineTotal != null) grandTotal += lineTotal
-        doc.text(up != null ? up.toFixed(2) : '—',              cols.price, rowY, { width: 60 })
-        doc.text(lineTotal != null ? lineTotal.toFixed(2) : '—', cols.total, rowY, { width: 60 })
-      } else {
-        doc.text(item.notes || '', cols.notes, rowY, { width: 80 })
+        doc.fillColor(dark).font('Helvetica').fontSize(8.5)
+           .text(up != null ? `${currency} ${up.toFixed(2)}` : '—', c.price, y + 10, { width: 55, align: 'right' })
+
+        doc.fillColor(up != null ? green : muted).font('Helvetica-Bold').fontSize(8.5)
+           .text(lineTotal != null ? `${currency} ${lineTotal.toFixed(2)}` : '—', c.total, y + 10, { width: 55, align: 'right' })
       }
-      doc.moveDown(0.8)
+
+      // Bottom border
+      doc.moveTo(M, y + rowH).lineTo(W - M, y + rowH).strokeColor(border).lineWidth(0.5).stroke()
+      y += rowH
     })
 
     // Grand total row
-    if (hasPrice && grandTotal > 0) {
-      doc.moveDown(0.3)
-      const totalY = doc.y
-      doc.rect(50, totalY - 2, doc.page.width - 100, 22).fill(primary)
-      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(10)
-      doc.text('GRAND TOTAL', cols.name, totalY + 4, { width: 380 })
-      doc.text(`${currency} ${grandTotal.toFixed(2)}`, cols.total, totalY + 4, { width: 60 })
-      doc.moveDown(1.2)
+    if (hasPrice) {
+      const gtH = 32
+      doc.rect(M, y, tableW, gtH).fill(navy)
+      doc.fillColor(white).font('Helvetica-Bold').fontSize(10)
+         .text('GRAND TOTAL', M + 14, y + 10, { width: tableW - 80 })
+      doc.fillColor('#fbbf24').font('Helvetica-Bold').fontSize(12)
+         .text(`${currency} ${grandTotal.toFixed(2)}`, c.total - 10, y + 9, { width: 65, align: 'right' })
+      y += gtH
     }
 
-    doc.moveDown(0.5)
+    y += 20
 
-    // ── Logistics ────────────────────────────────────────────────────────────
-    const deliveryDate = rfq.requestedDeliveryDate || rfq.requested_delivery_date
-    const shippingMethod = rfq.shippingMethod || rfq.shipping_method
-    if (deliveryDate || shippingMethod) {
-      doc.fillColor(primary).font('Helvetica-Bold').fontSize(12).text('Logistics')
-      doc.moveTo(50, doc.y + 4).lineTo(doc.page.width - 100, doc.y + 4).strokeColor('#e7e8e9').stroke()
-      doc.moveDown(0.8)
-      if (deliveryDate) {
-        doc.fillColor(muted).font('Helvetica-Bold').fontSize(8).text('REQUIRED DELIVERY DATE')
-        doc.fillColor(dark).font('Helvetica').fontSize(10).text(deliveryDate)
-        doc.moveDown(0.3)
-      }
-      if (shippingMethod) {
-        doc.fillColor(muted).font('Helvetica-Bold').fontSize(8).text('SHIPPING METHOD')
-        doc.fillColor(dark).font('Helvetica').fontSize(10).text(shippingMethod)
-        doc.moveDown(0.3)
-      }
-      doc.moveDown(0.5)
+    // ── QUOTE NOTES ──────────────────────────────────────────────────────────
+    if (rfq.quoteNotes || rfq.message) {
+      const noteText = rfq.quoteNotes || rfq.message
+      doc.roundedRect(M, y, W - M * 2, 70, 6).fill(light)
+      doc.fillColor(navy).font('Helvetica-Bold').fontSize(10)
+         .text(rfq.quoteNotes ? 'QUOTATION NOTES' : 'SPECIAL INSTRUCTIONS', M + 14, y + 12)
+      doc.fillColor(dark).font('Helvetica').fontSize(9)
+         .text(noteText, M + 14, y + 28, { width: W - M * 2 - 28, height: 32 })
+      y += 80
     }
 
-    // ── Message ──────────────────────────────────────────────────────────────
-    if (rfq.message) {
-      doc.fillColor(primary).font('Helvetica-Bold').fontSize(12).text('Special Instructions')
-      doc.moveTo(50, doc.y + 4).lineTo(doc.page.width - 100, doc.y + 4).strokeColor('#e7e8e9').stroke()
-      doc.moveDown(0.8)
-      doc.fillColor(dark).font('Helvetica').fontSize(10).text(rfq.message, { width: doc.page.width - 100 })
-      doc.moveDown(0.5)
-    }
+    // ── TERMS BOX ────────────────────────────────────────────────────────────
+    doc.roundedRect(M, y, W - M * 2, 50, 6).strokeColor(border).lineWidth(1).stroke()
+    doc.fillColor(navy).font('Helvetica-Bold').fontSize(9).text('Terms & Conditions', M + 14, y + 10)
+    doc.fillColor(muted).font('Helvetica').fontSize(7.5)
+       .text('Prices are valid for 30 days. Payment terms: 50% advance, 50% on delivery. All prices are exclusive of applicable taxes and duties. Subject to product availability.', M + 14, y + 24, { width: W - M * 2 - 28 })
 
-    // ── Quote Notes ──────────────────────────────────────────────────────────
-    if (rfq.quoteNotes) {
-      doc.fillColor(primary).font('Helvetica-Bold').fontSize(12).text('Quotation Notes')
-      doc.moveTo(50, doc.y + 4).lineTo(doc.page.width - 100, doc.y + 4).strokeColor('#e7e8e9').stroke()
-      doc.moveDown(0.8)
-      doc.fillColor(dark).font('Helvetica').fontSize(10).text(rfq.quoteNotes, { width: doc.page.width - 100 })
-      doc.moveDown(0.5)
-    }
+    // ── FOOTER ───────────────────────────────────────────────────────────────
+    const footerY = H - 48
+    doc.rect(0, footerY, W, 48).fill(navy)
 
-    // ── Footer ───────────────────────────────────────────────────────────────
-    const footerY = doc.page.height - 60
-    doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY).strokeColor('#e7e8e9').stroke()
-    doc.fillColor(muted).font('Helvetica').fontSize(8)
-       .text('PharmaLink Wholesale | procurement@pharmalinkwholesale.com | +44 (0) 20 7946 0123',
-             50, footerY + 10, { align: 'center', width: doc.page.width - 100 })
-    doc.text('This document is confidential and intended solely for the named recipient.',
-             50, footerY + 22, { align: 'center', width: doc.page.width - 100 })
+    doc.fillColor('#93c5fd').font('Helvetica-Bold').fontSize(8)
+       .text('PharmaLink Wholesale', M, footerY + 10)
+    doc.fillColor('#bfdbfe').font('Helvetica').fontSize(7.5)
+       .text('procurement@pharmalinkwholesale.com  ·  +44 (0) 20 7946 0123  ·  www.pharmalinkwholesale.com', M, footerY + 24)
+
+    doc.fillColor('#bfdbfe').font('Helvetica').fontSize(7)
+       .text('This document is confidential and intended solely for the named recipient.', 0, footerY + 24, { width: W - M, align: 'right' })
 
     doc.end()
   })

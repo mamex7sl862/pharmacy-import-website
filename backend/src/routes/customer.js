@@ -101,7 +101,14 @@ router.get('/rfqs/:id/pdf', async (req, res, next) => {
       customerName: rfq.customerName, companyName: rfq.companyName,
       email: rfq.email, phone: rfq.phone, city: rfq.city, country: rfq.country,
       message: rfq.message,
-      items: items.map((i) => ({ productName: i.product_name, brand: i.brand, quantity: i.quantity, unit: i.unit, notes: i.notes })),
+      quoteNotes: rfq.quote_notes,
+      requestedDeliveryDate: rfq.requested_delivery_date,
+      shippingMethod: rfq.shipping_method,
+      items: items.map((i) => ({
+        productName: i.product_name, brand: i.brand,
+        quantity: i.quantity, unit: i.unit, notes: i.notes,
+        unitPrice: i.unit_price, currency: i.currency || 'USD',
+      })),
     }
     const pdfBuffer = await generateRFQPDF(pdfData)
     res.setHeader('Content-Type', 'application/pdf')
