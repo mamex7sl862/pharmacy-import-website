@@ -779,7 +779,7 @@ export default function RFQ() {
                     <p className="text-xs text-on-surface-variant truncate">{user?.email}</p>
                   </div>
                   <button
-                    onClick={clearAuth}
+                    onClick={() => { clearAuth(); navigate('/login') }}
                     className="w-full text-left px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-base">logout</span>
