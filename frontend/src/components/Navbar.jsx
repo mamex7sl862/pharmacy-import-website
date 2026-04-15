@@ -1,53 +1,40 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { useTranslation } from 'react-i18next'
 import useRFQStore from '../store/rfqStore'
 import useAuthStore from '../store/authStore'
-import i18n from '../lib/i18n'
 
-const LANGUAGES = [
-  { code: 'en', label: 'EN' },
-  { code: 'am', label: 'አማ' },
+const NAV_LINKS = [
+  { to: '/products', label: 'Products' },
+  { to: '/services', label: 'Services' },
+  { to: '/about',    label: 'About' },
+  { to: '/contact',  label: 'Contact' },
+  { to: '/track',    label: 'Track RFQ' },
 ]
 
 export default function Navbar() {
   const itemCount = useRFQStore((s) => s.selectedProducts.length)
   const { user, clearAuth } = useAuthStore()
-  const { t } = useTranslation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [currentLang, setCurrentLang] = useState('en')
   const location = useLocation()
   const navigate = useNavigate()
   const profileRef = useRef(null)
 
-  const switchLang = (code) => {
-    setCurrentLang(code)
-    i18n.changeLanguage(code)
-  }
-
   useEffect(() => { setIsMobileMenuOpen(false) }, [location.pathname])
 
-  // Close dropdown on outside click
   useEffect(() => {
-    const handler = (e) => { if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false) }
+    const handler = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
-
-  const NAV_LINKS = [
-    { to: '/products',   label: t('nav.products') },
-    { to: '/services',   label: t('nav.services') },
-    { to: '/about',      label: t('nav.about') },
-    { to: '/contact',    label: t('nav.contact') },
-    { to: '/track',      label: t('nav.track_rfq') },
-  ]
 
   return (
     <nav className="sticky top-0 w-full z-50 bg-slate-50/90 backdrop-blur-xl shadow-sm">
       <div className="flex items-center justify-between px-4 md:px-8 py-4 max-w-screen-2xl mx-auto">
 
-        {/* Logo + mobile toggle */}
+        {/* Logo */}
         <div className="flex items-center gap-4">
           <button className="md:hidden text-slate-700" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
             <span className="material-symbols-outlined text-2xl">{isMobileMenuOpen ? 'close' : 'menu'}</span>
@@ -68,23 +55,6 @@ export default function Navbar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-3 md:gap-4">
-          {/* Language switcher */}
-          <div className="hidden sm:flex items-center gap-1 bg-surface-container-high rounded-lg px-1 py-1">
-            {LANGUAGES.map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => switchLang(lang.code)}
-                className={`text-xs font-bold px-2 py-1 rounded-md transition-all ${
-                  currentLang === lang.code
-                    ? 'bg-white text-primary shadow-sm'
-                    : 'text-slate-500 hover:text-primary'
-                }`}
-              >
-                {lang.label}
-              </button>
-            ))}
-          </div>
-
           {/* RFQ badge */}
           <Link to="/rfq" className="relative p-2 text-on-surface-variant hover:text-primary transition-colors">
             <span className="material-symbols-outlined">description</span>
@@ -108,11 +78,11 @@ export default function Navbar() {
                   </div>
                   <Link to={user.role === 'admin' ? '/admin' : '/portal'} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors">
                     <span className="material-symbols-outlined text-base">dashboard</span>
-                    {t('nav.my_dashboard')}
+                    My Dashboard
                   </Link>
                   <button onClick={() => { clearAuth(); navigate('/login') }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors">
                     <span className="material-symbols-outlined text-base">logout</span>
-                    {t('nav.sign_out')}
+                    Logout
                   </button>
                 </div>
               )}
@@ -120,10 +90,10 @@ export default function Navbar() {
           ) : (
             <div className="hidden sm:flex items-center gap-2">
               <Link to="/rfq" className="signature-gradient text-white px-4 md:px-6 py-2 md:py-2.5 rounded-lg font-headline font-bold text-xs md:text-sm transition-all active:scale-95 shadow-md whitespace-nowrap">
-                {t('nav.request_quote')}
+                Request Quotation
               </Link>
               <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-900 px-4 py-2 rounded-lg transition-colors">
-                {t('nav.sign_in')}
+                Sign In
               </Link>
             </div>
           )}

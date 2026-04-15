@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
 import api from '../lib/api'
 import useRFQStore from '../store/rfqStore'
 import { useSiteContent } from '../lib/useSiteContent'
@@ -25,7 +24,6 @@ const DEFAULT_WHY = [
 const DEFAULT_COMPANY = { yearsExp: '15+', countries: '50+', aboutImage: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&q=90', aboutHeading: 'The Essential Bridge in Healthcare Supply Chains', address: 'Medical Park West, Floor 14, London, UK EC1A 4HQ', phone: '+44 (0) 20 7946 0123', email: 'support@pharmalinkwholesale.com', procurementEmail: 'procurement@pharmalinkwholesale.com' }
 
 function HeroSlideshow({ slides }) {
-  const { t } = useTranslation()
   const HERO_SLIDES = slides || DEFAULT_SLIDES
   const [current, setCurrent] = useState(0)
   const [prev, setPrev] = useState(null)
@@ -97,10 +95,10 @@ function HeroSlideshow({ slides }) {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link to="/rfq" className="signature-gradient text-white px-10 py-5 rounded-lg font-headline font-bold text-lg hover:scale-[1.02] transition-all shadow-2xl">
-            {t('hero.cta_rfq')}
+            Request Quotation
           </Link>
           <Link to="/products" className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-5 rounded-lg font-headline font-bold text-lg hover:bg-white/20 transition-all">
-            {t('hero.cta_products')}
+            Browse Products
           </Link>
         </div>
       </div>
@@ -220,7 +218,6 @@ function FeaturedCard({ product }) {
 }
 
 export default function Home() {
-  const { t } = useTranslation()
   const HERO_SLIDES = useSiteContent('hero_slides', DEFAULT_SLIDES)
   const WHY_US = useSiteContent('why_choose_us', DEFAULT_WHY)
   const company = useSiteContent('company_info', DEFAULT_COMPANY)
@@ -317,13 +314,13 @@ export default function Home() {
       {/* 4. Why Choose Us */}
       <section className="bg-primary text-white py-16 md:py-20 px-4 md:px-8">
         <div className="max-w-screen-2xl mx-auto">
-          <h2 className="text-center font-headline text-3xl md:text-4xl font-extrabold mb-12 md:mb-16">{t('why.title')}</h2>
+          <h2 className="text-center font-headline text-3xl md:text-4xl font-extrabold mb-12 md:mb-16">Why Choose Us</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-6">
             {(WHY_US || DEFAULT_WHY).map((item, i) => (
               <div key={item.title} className="text-center">
                 <span className="material-symbols-outlined text-4xl mb-4 text-blue-300 block" style={{ fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
-                <h4 className="font-headline font-bold text-lg mb-2">{t(`why.items.${i}.title`, item.title)}</h4>
-                <p className="text-blue-200 text-xs px-4">{t(`why.items.${i}.desc`, item.desc)}</p>
+                <h4 className="font-headline font-bold text-lg mb-2">{item.title}</h4>
+                <p className="text-blue-200 text-xs px-4">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -351,14 +348,14 @@ export default function Home() {
       {/* 6. How It Works */}
       <section className="py-16 md:py-24 bg-surface px-4 md:px-8">
         <div className="max-w-screen-xl mx-auto text-center">
-          <h2 className="text-on-surface font-headline text-2xl md:text-3xl font-extrabold mb-12 md:mb-16">{t('process.title')}</h2>
+          <h2 className="text-on-surface font-headline text-2xl md:text-3xl font-extrabold mb-12 md:mb-16">Our Process</h2>
           <div className="relative flex flex-col md:flex-row justify-between items-center gap-12 md:gap-4">
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-4/5 h-0.5 bg-outline-variant hidden md:block" />
             {STEPS.map((s, i) => (
               <div key={s.n} className="relative z-10 flex flex-col items-center max-w-[200px]">
                 <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white font-headline font-bold text-xl mb-6 shadow-lg shadow-primary/30">{s.n}</div>
-                <h5 className="font-headline font-bold mb-2">{t(`process.steps.${i}.title`, s.label)}</h5>
-                <p className="text-xs text-on-surface-variant">{t(`process.steps.${i}.desc`, s.desc)}</p>
+                <h5 className="font-headline font-bold mb-2">{s.label}</h5>
+                <p className="text-xs text-on-surface-variant">{s.desc}</p>
               </div>
             ))}
           </div>
