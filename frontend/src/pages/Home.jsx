@@ -25,6 +25,7 @@ const DEFAULT_WHY = [
 const DEFAULT_COMPANY = { yearsExp: '15+', countries: '50+', aboutImage: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&q=90', aboutHeading: 'The Essential Bridge in Healthcare Supply Chains', address: 'Medical Park West, Floor 14, London, UK EC1A 4HQ', phone: '+44 (0) 20 7946 0123', email: 'support@pharmalinkwholesale.com', procurementEmail: 'procurement@pharmalinkwholesale.com' }
 
 function HeroSlideshow({ slides }) {
+  const { t } = useTranslation()
   const HERO_SLIDES = slides || DEFAULT_SLIDES
   const [current, setCurrent] = useState(0)
   const [prev, setPrev] = useState(null)
@@ -99,7 +100,7 @@ function HeroSlideshow({ slides }) {
             {t('hero.cta_rfq')}
           </Link>
           <Link to="/products" className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-5 rounded-lg font-headline font-bold text-lg hover:bg-white/20 transition-all">
-            View Products
+            {t('hero.cta_products')}
           </Link>
         </div>
       </div>
