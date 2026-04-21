@@ -537,7 +537,6 @@ export default function RFQ() {
           <span className="font-headline font-bold text-primary text-base">PharmaLink</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-on-surface-variant hidden sm:block">Step {currentStep} of 4 — {stepTitles[currentStep - 1]}</span>
           <button onClick={() => setProfileOpen(o => !o)} className="text-on-surface-variant hover:text-primary">
             <span className="material-symbols-outlined text-2xl">account_circle</span>
           </button>
@@ -571,8 +570,8 @@ export default function RFQ() {
             <Stepper step={currentStep} />
           </div>
 
-          {/* Step card — fills remaining height */}
-          <div className="flex-1 bg-surface-container-lowest rounded-xl shadow-sm p-4 min-h-0 flex flex-col">
+          {/* Step card — fills remaining height, buttons always visible */}
+          <div className="flex-1 bg-surface-container-lowest rounded-xl shadow-sm p-4 min-h-0 overflow-hidden flex flex-col">
             {currentStep === 1 && (
               <Step1 onNext={async (data) => {
                 try { const { data: u } = await api.put('/customer/profile', data); updateUser(u) } catch (_) {}
