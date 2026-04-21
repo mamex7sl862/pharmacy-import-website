@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import ScrollToTop from './components/ScrollToTop'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
@@ -33,6 +34,7 @@ import LiveChat from './components/LiveChat'
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-surface">
+      <ScrollToTop />
       <Routes>
         {/* Admin routes — no public navbar */}
         <Route path="/admin/*" element={
