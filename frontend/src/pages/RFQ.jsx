@@ -898,7 +898,7 @@ export default function RFQ() {
         </div>
       </nav>
 
-      <main className="pt-20 pb-6 px-4 md:px-8">
+      <main className="pt-[68px] pb-6 px-4 md:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="mb-4 flex items-center justify-between">
             <div>
