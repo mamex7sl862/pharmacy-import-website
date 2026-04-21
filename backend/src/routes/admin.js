@@ -69,12 +69,10 @@ router.get('/rfqs/:id', async (req, res, next) => {
     const rfq = rows[0]
     const [{ rows: items }, { rows: attachments }] = await Promise.all([
       pool.query(
-        `SELECT ri.id, ri.product_name, ri.brand, ri.quantity, ri.unit, ri.notes,
-                COALESCE(ri.unit_price, p.price) AS "unitPrice",
-                COALESCE(ri.currency, p.currency, 'USD') AS currency
-         FROM rfq_items ri
-         LEFT JOIN products p ON p.id = ri.product_id
-         WHERE ri.rfq_id = $1 ORDER BY ri.id`,
+        `SELECT id, product_name, brand, quantity, unit, notes,
+                unit_price AS "unitPrice", currency
+         FROM rfq_items
+         WHERE rfq_id = $1 ORDER BY id`,
         [rfq.id]
       ),
       pool.query('SELECT * FROM rfq_attachments WHERE rfq_id = $1', [rfq.id]),
