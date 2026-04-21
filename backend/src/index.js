@@ -11,6 +11,7 @@ const rfqRoutes = require('./routes/rfq')
 const customerRoutes = require('./routes/customer')
 const adminRoutes = require('./routes/admin')
 const contentRoutes = require('./routes/content')
+const chatRoutes = require('./routes/chat')
 
 const app = express()
 
@@ -52,6 +53,7 @@ app.use('/api/rfq', rfqLimiter, rfqRoutes)
 app.use('/api/customer', customerRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/content', contentRoutes)
+app.use('/api/chat', chatRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }))

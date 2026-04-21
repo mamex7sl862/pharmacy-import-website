@@ -3,14 +3,16 @@ const { Pool } = require('pg')
 let poolConfig
 
 if (process.env.DATABASE_URL) {
+  // For local dev, disable SSL. For production (Heroku/Render/Supabase), enable it.
+  const isProduction = process.env.NODE_ENV === 'production'
   poolConfig = {
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    ssl: isProduction ? { rejectUnauthorized: false } : false,
   }
 } else {
   poolConfig = {
     host:     process.env.PGHOST     || 'localhost',
-    port:     parseInt(process.env.PGPORT) || 5433,
+    port:     parseInt(process.env.PGPORT) || 5432,
     database: process.env.PGDATABASE || 'pharmalink',
     user:     process.env.PGUSER     || 'postgres',
     password: process.env.PGPASSWORD || 'postgres',
