@@ -124,7 +124,7 @@ export default function AdminLayout({ children, title, subtitle }) {
         </aside>
 
         {/* Main */}
-        <main className="flex-1 lg:ml-64 p-4 md:p-10 max-w-full overflow-x-hidden">
+        <main className="flex-1 lg:ml-64 p-4 md:px-10 md:py-6 max-w-full overflow-x-hidden">
           {(title || subtitle) && (
             <div className="mb-6 md:mb-8">
               {title && <h1 className="text-2xl md:text-3xl font-headline font-extrabold text-on-surface tracking-tight">{title}</h1>}

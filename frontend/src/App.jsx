@@ -53,6 +53,9 @@ export default function App() {
           </ProtectedRoute>
         } />
 
+        {/* RFQ wizard — has its own navbar, no public Navbar/Footer */}
+        <Route path="/rfq" element={<ProtectedRoute role="customer"><RFQ /></ProtectedRoute>} />
+
         {/* Public + customer routes */}
         <Route path="*" element={
           <>
@@ -65,7 +68,6 @@ export default function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/rfq" element={<RFQ />} />
                 <Route path="/rfq/success/:rfqNumber" element={<RFQSuccess />} />
                 <Route path="/track" element={<TrackRFQ />} />
                 <Route path="/compare" element={<Compare />} />

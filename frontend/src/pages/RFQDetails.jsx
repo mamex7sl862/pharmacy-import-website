@@ -5,17 +5,10 @@ import api from '../lib/api'
 import AdminLayout from '../components/AdminLayout'
 
 const STATUS_BADGE = {
-  NEW:            'bg-blue-50 text-blue-700',
-  UNDER_REVIEW:   'bg-yellow-50 text-yellow-700',
-  QUOTATION_SENT: 'bg-green-50 text-green-700',
-  CLOSED:         'bg-slate-100 text-slate-500',
-}
-
-const STATUS_ICON = {
-  NEW:            'fiber_new',
-  UNDER_REVIEW:   'pending',
-  QUOTATION_SENT: 'mark_email_read',
-  CLOSED:         'task_alt',
+  NEW:            'bg-blue-50 text-blue-700 border-blue-200',
+  UNDER_REVIEW:   'bg-yellow-50 text-yellow-700 border-yellow-200',
+  QUOTATION_SENT: 'bg-green-50 text-green-700 border-green-200',
+  CLOSED:         'bg-gray-100 text-gray-600 border-gray-200',
 }
 
 export default function RFQDetails() {
@@ -25,7 +18,6 @@ export default function RFQDetails() {
   const [notes, setNotes] = useState(null)
   const [notesSaved, setNotesSaved] = useState(false)
   const [quotationSent, setQuotationSent] = useState(false)
-  const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [itemPrices, setItemPrices] = useState({})
   const [quoteNotes, setQuoteNotes] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -40,7 +32,6 @@ export default function RFQDetails() {
     if (rfq && notes === null) {
       setNotes(rfq.internal_notes || '')
       setQuoteNotes(rfq.quote_notes || '')
-      // Pre-fill prices: use saved unit_price first, then fall back to product catalog price
       const prices = {}
       rfq.items?.forEach((item) => {
         prices[item.id] = {
@@ -49,7 +40,6 @@ export default function RFQDetails() {
         }
       })
       setItemPrices(prices)
-      // Set global currency from first item
       if (rfq.items?.[0]?.currency) setCurrency(rfq.items[0].currency)
     }
   }, [rfq])
@@ -65,8 +55,7 @@ export default function RFQDetails() {
     if (status === 'QUOTATION_SENT') {
       const allPriced = rfq?.items?.every((item) => itemPrices[item.id]?.unitPrice)
       if (!allPriced) {
-        setPriceError('Please fill in the unit price for all items before sending a quotation.')
-        document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' })
+        setPriceError('Please fill in unit prices for all items.')
         return
       }
     }
@@ -92,14 +81,6 @@ export default function RFQDetails() {
     },
   })
 
-  const deleteRFQ = useMutation({
-    mutationFn: () => api.delete(`/admin/rfqs/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries(['admin-rfqs'])
-      navigate('/admin/rfqs')
-    },
-  })
-
   // PDF download with auth token
   const exportPDF = async () => {
     try {
@@ -116,9 +97,11 @@ export default function RFQDetails() {
   }
 
   if (isLoading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
-    </div>
+    <AdminLayout>
+      <div className="flex items-center justify-center h-64">
+        <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
+      </div>
+    </AdminLayout>
   )
   if (!rfq) return null
 
@@ -131,123 +114,109 @@ export default function RFQDetails() {
   const businessType  = rfq.businessType  || rfq.guest_business_type
 
   return (
-    <div className="bg-background font-body text-on-surface antialiased min-h-screen">
-      {/* Top bar */}
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-lg shadow-sm h-20 flex justify-between items-center px-4 md:px-8">
-        <div className="flex items-center gap-4">
-          <Link to="/admin/rfqs" className="p-2 hover:bg-slate-100 transition-colors rounded-full text-primary">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </Link>
-          <div>
-            <h1 className="font-headline font-bold text-xl tracking-tight text-primary">{rfq.rfq_number}</h1>
-            <p className="text-xs text-slate-500">{companyName} · {customerName}</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="pt-24 pb-32 px-4 max-w-5xl mx-auto space-y-6">
-
-        {/* Status & meta */}
-        <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${STATUS_BADGE[rfq.status]}`}>
-                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>{STATUS_ICON[rfq.status]}</span>
-                  {rfq.status?.replace('_', ' ')}
-                </span>
-                <span className="text-xs text-slate-400">
-                  Submitted {new Date(rfq.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
+    <AdminLayout>
+      <div className="max-w-7xl mx-auto px-4 space-y-4">
+        
+        {/* Header - Compact */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link to="/admin/rfqs" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <span className="material-symbols-outlined text-gray-600">arrow_back</span>
+              </Link>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">{rfq.rfq_number}</h1>
+                <p className="text-sm text-gray-600">{companyName} • {customerName}</p>
               </div>
-              {rfq.requested_delivery_date && (
-                <p className="text-xs text-on-surface-variant">
-                  <span className="font-bold">Delivery by:</span> {rfq.requested_delivery_date}
-                </p>
-              )}
-              {rfq.shipping_method && (
-                <p className="text-xs text-on-surface-variant">
-                  <span className="font-bold">Shipping:</span> {rfq.shipping_method}
-                </p>
-              )}
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_BADGE[rfq.status]}`}>
+                {rfq.status?.replace('_', ' ')}
+              </span>
             </div>
+            
             <div className="flex items-center gap-3">
-              <label className="text-xs font-bold text-outline uppercase tracking-widest">Change Status</label>
               <select
                 value={rfq.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
-                className="px-4 py-2 bg-surface-container-high rounded-lg text-sm font-semibold text-on-surface outline-none border-none cursor-pointer"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="NEW">New</option>
                 <option value="UNDER_REVIEW">Under Review</option>
                 <option value="QUOTATION_SENT">Quotation Sent</option>
                 <option value="CLOSED">Closed</option>
               </select>
+              
+              <button onClick={exportPDF} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                PDF
+              </button>
+              
+              <button
+                onClick={() => {
+                  const allPriced = rfq?.items?.every((item) => itemPrices[item.id]?.unitPrice)
+                  if (!allPriced) {
+                    setPriceError('Please fill in unit prices for all items.')
+                    return
+                  }
+                  setPriceError('')
+                  sendQuotation.mutate()
+                }}
+                disabled={sendQuotation.isPending || quotationSent}
+                className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {sendQuotation.isPending ? 'Sending...' : quotationSent ? '✓ Sent' : 'Send Quote'}
+              </button>
             </div>
           </div>
+          
+          {/* Error/Success Messages */}
           {priceError && (
-            <div className="mt-4 p-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-base text-amber-600">warning</span>
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">warning</span>
               {priceError}
             </div>
           )}
-          {sendQuotation.isError && (
-            <div className="mt-4 p-3 bg-error-container text-on-error-container rounded-lg text-sm">
-              Failed to send quotation: {sendQuotation.error?.response?.data?.message || sendQuotation.error?.message}
-            </div>
-          )}
           {quotationSent && (
-            <div className="mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-              Quotation email sent successfully to {email}
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">check_circle</span>
+              Quotation sent successfully to {email}
             </div>
           )}
-        </section>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Products + Attachments */}
+          
+          {/* Main Content - Products */}
           <div className="lg:col-span-2 space-y-6">
-
-            {/* Products */}
-            <section id="products-section" className="bg-surface-container-low rounded-xl overflow-hidden">
-              <div className="p-5 border-b border-white/20 bg-white/40 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">medical_services</span>
-                  <h3 className="font-headline font-bold text-on-surface">Requested Products</h3>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-outline">{rfq.items?.length} items</span>
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                    className="text-xs px-2 py-1 rounded-lg bg-surface-container border-none outline-none font-bold text-on-surface"
-                  >
-                    {['USD','EUR','GBP','AED','SAR'].map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Products ({rfq.items?.length})</h2>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm font-medium"
+                >
+                  {['USD','EUR','GBP','AED','SAR'].map((c) => <option key={c}>{c}</option>)}
+                </select>
               </div>
-              <div className="divide-y divide-outline-variant/10">
+              
+              <div className="divide-y divide-gray-100">
                 {rfq.items?.map((item) => (
-                  <div key={item.id} className="p-5 flex items-center justify-between gap-4 hover:bg-white/30 transition-colors">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center flex-shrink-0">
-                        <span className="material-symbols-outlined text-outline text-lg">medication_liquid</span>
-                      </div>
+                  <div key={item.id} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
                       <div className="flex-1">
-                        <p className="font-bold text-sm text-on-surface">{item.product_name}</p>
-                        <p className="text-xs text-outline">{item.brand} · {item.unit}</p>
-                        {item.notes && <p className="text-xs text-on-surface-variant italic mt-0.5">"{item.notes}"</p>}
+                        <h3 className="font-semibold text-gray-900">{item.product_name}</h3>
+                        <p className="text-sm text-gray-600">{item.brand}</p>
+                        {item.notes && <p className="text-sm text-gray-500 italic mt-1">"{item.notes}"</p>}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4 flex-shrink-0">
-                      <div className="text-right">
-                        <p className="text-xl font-headline font-extrabold text-primary">{item.quantity}</p>
-                        <p className="text-[10px] font-bold text-outline-variant uppercase">{item.unit}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <label className="text-[10px] font-bold text-outline uppercase tracking-wider">Unit Price</label>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-outline">{currency}</span>
+                      
+                      <div className="flex items-center gap-6">
+                        <div className="text-center">
+                          <p className="text-lg font-bold text-primary">{item.quantity}</p>
+                          <p className="text-xs text-gray-500 uppercase">{item.unit}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">{currency}</span>
                           <input
                             type="number"
                             min="0"
@@ -255,24 +224,29 @@ export default function RFQDetails() {
                             placeholder="0.00"
                             value={itemPrices[item.id]?.unitPrice || ''}
                             onChange={(e) => setItemPrices((p) => ({ ...p, [item.id]: { unitPrice: e.target.value, currency } }))}
-                            className="w-24 text-sm px-2 py-1 rounded-lg bg-surface-container border border-outline-variant/30 outline-none focus:ring-1 focus:ring-primary text-right"
+                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm text-right focus:ring-2 focus:ring-primary focus:border-primary"
                           />
                         </div>
+                        
                         {itemPrices[item.id]?.unitPrice && (
-                          <p className="text-[10px] text-primary font-bold">
-                            Total: {currency} {(parseFloat(itemPrices[item.id].unitPrice) * item.quantity).toFixed(2)}
-                          </p>
+                          <div className="text-right min-w-[80px]">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {currency} {(parseFloat(itemPrices[item.id].unitPrice) * item.quantity).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">Total</p>
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              {/* Grand total */}
+              
+              {/* Grand Total */}
               {Object.keys(itemPrices).length > 0 && (
-                <div className="p-5 bg-primary/5 border-t border-primary/10 flex justify-between items-center">
-                  <span className="font-bold text-sm text-on-surface">Grand Total</span>
-                  <span className="font-extrabold text-lg text-primary">
+                <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                  <span className="text-lg font-semibold text-gray-900">Grand Total</span>
+                  <span className="text-xl font-bold text-primary">
                     {currency} {rfq.items?.reduce((sum, item) => {
                       const p = parseFloat(itemPrices[item.id]?.unitPrice || 0)
                       return sum + p * item.quantity
@@ -280,218 +254,204 @@ export default function RFQDetails() {
                   </span>
                 </div>
               )}
-            </section>
-
+            </div>
+            
             {/* Quote Notes */}
-            <section className="bg-surface-container-low rounded-xl overflow-hidden">
-              <div className="p-5 border-b border-white/20 bg-white/40 flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary">request_quote</span>
-                <h3 className="font-headline font-bold text-on-surface">Quotation Notes</h3>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Quotation Notes</h2>
               </div>
-              <div className="p-5">
+              <div className="p-4">
                 <textarea
                   rows={3}
                   value={quoteNotes}
                   onChange={(e) => setQuoteNotes(e.target.value)}
-                  placeholder="Add notes to include in the quotation PDF sent to the customer..."
-                  className="w-full bg-surface-container-lowest border-none rounded-lg text-sm text-on-surface placeholder:text-outline-variant focus:ring-1 focus:ring-primary p-4 outline-none resize-none"
+                  placeholder="Add notes to include in the quotation PDF..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary resize-none"
                 />
               </div>
-            </section>
+            </div>
 
-            {/* Message */}
+            {/* Special Instructions */}
             {rfq.message && (
-              <section className="bg-surface-container-low rounded-xl p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="material-symbols-outlined text-primary">chat_bubble</span>
-                  <h3 className="font-headline font-bold text-on-surface">Special Instructions</h3>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Special Instructions</h2>
                 </div>
-                <p className="text-sm text-on-surface-variant leading-relaxed">{rfq.message}</p>
-              </section>
+                <div className="p-4">
+                  <p className="text-sm text-gray-700 leading-relaxed">{rfq.message}</p>
+                </div>
+              </div>
             )}
 
             {/* Attachments */}
             {rfq.attachments?.length > 0 && (
-              <section className="bg-surface-container-low rounded-xl overflow-hidden">
-                <div className="p-5 border-b border-white/20 bg-white/40 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-primary">attach_file</span>
-                    <h3 className="font-headline font-bold text-on-surface">Submitted Documents</h3>
-                  </div>
-                  <span className="text-xs text-outline">{rfq.attachments.length} file{rfq.attachments.length !== 1 ? 's' : ''}</span>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Attachments ({rfq.attachments.length})</h2>
                 </div>
-                <div className="p-5 space-y-3">
+                <div className="p-4 space-y-2">
                   {rfq.attachments.map((file) => {
-                    const isImage = file.mime_type?.startsWith('image/')
                     const isPDF = file.mime_type === 'application/pdf'
+                    const isImage = file.mime_type?.startsWith('image/')
                     const fileUrl = file.file_url.startsWith('http') ? file.file_url : `http://localhost:5000${file.file_url}`
 
                     return (
-                      <div key={file.id} className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/10">
-                        {/* Image preview */}
-                        {isImage && (
-                          <div className="w-full max-h-64 overflow-hidden bg-surface-container">
-                            <img
-                              src={fileUrl}
-                              alt={file.file_name}
-                              className="w-full h-full object-contain"
-                              onError={(e) => { e.target.style.display = 'none' }}
-                            />
-                          </div>
-                        )}
-
-                        {/* File info row */}
-                        <div className="flex items-center gap-3 p-4">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                            isPDF ? 'bg-red-50 text-red-600' :
-                            isImage ? 'bg-blue-50 text-blue-600' :
-                            'bg-surface-container text-outline'
-                          }`}>
-                            <span className="material-symbols-outlined text-lg">
-                              {isPDF ? 'picture_as_pdf' : isImage ? 'image' : 'description'}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-on-surface truncate">{file.file_name}</p>
-                            <p className="text-[10px] text-outline">
-                              {(file.file_size / 1024).toFixed(0)} KB · {file.mime_type}
-                            </p>
-                          </div>
-                          <div className="flex gap-2 flex-shrink-0">
-                            {/* View in new tab */}
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container text-on-surface-variant hover:bg-primary hover:text-white transition-all text-xs font-bold"
-                            >
-                              <span className="material-symbols-outlined text-sm">open_in_new</span>
-                              View
-                            </a>
-                            {/* Download */}
-                            <a
-                              href={fileUrl}
-                              download={file.file_name}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary transition-all text-xs font-bold"
-                            >
-                              <span className="material-symbols-outlined text-sm">download</span>
-                              Download
-                            </a>
-                          </div>
+                      <div key={file.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          isPDF ? 'bg-red-50 text-red-600' :
+                          isImage ? 'bg-blue-50 text-blue-600' :
+                          'bg-gray-50 text-gray-600'
+                        }`}>
+                          <span className="material-symbols-outlined text-lg">
+                            {isPDF ? 'picture_as_pdf' : isImage ? 'image' : 'description'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{file.file_name}</p>
+                          <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(0)} KB • {file.mime_type}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-sm">open_in_new</span>
+                            View
+                          </a>
+                          <a
+                            href={fileUrl}
+                            download={file.file_name}
+                            className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-sm">download</span>
+                            Download
+                          </a>
                         </div>
                       </div>
                     )
                   })}
                 </div>
-              </section>
-            )}
-
-            {/* No attachments message */}
-            {rfq.attachments?.length === 0 && (
-              <section className="bg-surface-container-low rounded-xl p-5">
-                <div className="flex items-center gap-3 text-on-surface-variant">
-                  <span className="material-symbols-outlined">attach_file</span>
-                  <p className="text-sm">No documents submitted with this RFQ.</p>
-                </div>
-              </section>
+              </div>
             )}
           </div>
 
-          {/* Right: Customer info + Notes */}
-          <div className="space-y-6">
-
-            {/* Customer */}
-            <section className="bg-surface-container-low rounded-xl overflow-hidden">
-              <div className="p-5 border-b border-white/20 bg-white/40 flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary">account_circle</span>
-                <h3 className="font-headline font-bold text-on-surface">Customer</h3>
+          {/* Sidebar */}
+          <div className="space-y-4">
+            
+            {/* Customer Info */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="px-4 py-3 border-b border-gray-200">
+                <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-lg">person</span>
+                  Customer
+                </h2>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-3 space-y-3">
                 {[
-                  { label: 'Name',          value: customerName },
-                  { label: 'Company',       value: companyName },
-                  { label: 'Business Type', value: businessType },
-                  { label: 'Email',         value: email, link: `mailto:${email}` },
-                  { label: 'Phone',         value: phone },
-                  { label: 'Location',      value: [city, country].filter(Boolean).join(', ') },
+                  { label: 'Name', value: customerName, icon: 'badge' },
+                  { label: 'Company', value: companyName, icon: 'business' },
+                  { label: 'Email', value: email, link: `mailto:${email}`, icon: 'mail' },
+                  { label: 'Phone', value: phone, icon: 'call' },
+                  { label: 'Location', value: [city, country].filter(Boolean).join(', '), icon: 'location_on' },
+                  { label: 'Business Type', value: businessType, icon: 'category' },
                 ].map((f) => f.value && (
-                  <div key={f.label}>
-                    <p className="text-[10px] font-bold uppercase tracking-tighter text-outline-variant">{f.label}</p>
-                    {f.link
-                      ? <a href={f.link} className="text-sm font-semibold text-primary underline underline-offset-4">{f.value}</a>
-                      : <p className="text-sm font-semibold text-on-surface">{f.value}</p>
-                    }
+                  <div key={f.label} className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-gray-400 text-base">{f.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-medium">{f.label}</p>
+                      {f.link ? (
+                        <a href={f.link} className="text-sm font-medium text-primary hover:underline truncate block">{f.value}</a>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-900 truncate">{f.value}</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
-            </section>
+            </div>
+
+            {/* Order Details */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="px-4 py-3 border-b border-gray-200">
+                <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-lg">receipt_long</span>
+                  Order Details
+                </h2>
+              </div>
+              <div className="p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-gray-400 text-base">schedule</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500 font-medium">Submitted</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {new Date(rfq.submitted_at).toLocaleDateString('en-GB', { 
+                        day: 'numeric', 
+                        month: 'short', 
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                {rfq.requested_delivery_date && (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-gray-400 text-base">event</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-medium">Delivery Date</p>
+                      <p className="text-sm font-medium text-gray-900">{rfq.requested_delivery_date}</p>
+                    </div>
+                  </div>
+                )}
+                {rfq.shipping_method && (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-gray-400 text-base">local_shipping</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-medium">Delivery Method</p>
+                      <p className="text-sm font-medium text-gray-900 capitalize">{rfq.shipping_method}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Internal Notes */}
-            <section className="bg-surface-container-low rounded-xl overflow-hidden">
-              <div className="p-5 border-b border-white/20 bg-white/40 flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary">edit_note</span>
-                <h3 className="font-headline font-bold text-on-surface">Internal Notes</h3>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="px-4 py-3 border-b border-gray-200">
+                <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-lg">edit_note</span>
+                  Internal Notes
+                </h2>
               </div>
-              <div className="p-5">
+              <div className="p-3">
                 <textarea
-                  rows={5}
+                  rows={3}
                   value={notes ?? rfq.internal_notes ?? ''}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add private notes for the fulfillment team..."
-                  className="w-full bg-surface-container-lowest border-none rounded-lg text-sm text-on-surface placeholder:text-outline-variant focus:ring-1 focus:ring-primary p-4 outline-none resize-none"
+                  placeholder="Add private notes..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary resize-none"
                 />
-                <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center justify-between mt-2">
                   {notesSaved && (
                     <span className="text-xs text-green-600 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                      <span className="material-symbols-outlined text-xs">check_circle</span>
                       Saved
                     </span>
                   )}
                   <button
                     onClick={() => saveNotes.mutate()}
                     disabled={saveNotes.isPending}
-                    className="ml-auto text-xs font-bold text-primary uppercase tracking-wider px-4 py-2 hover:bg-primary/5 rounded-full transition-colors disabled:opacity-50"
+                    className="ml-auto px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
                   >
-                    {saveNotes.isPending ? 'Saving...' : 'Save Notes'}
+                    {saveNotes.isPending ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </div>
-            </section>
+            </div>
           </div>
         </div>
-      </main>
-
-      {/* Fixed footer */}
-      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-t border-slate-200/50 flex items-center justify-center px-6 z-[60]">
-        <div className="max-w-5xl w-full flex items-center justify-between">
-          <div className="hidden sm:block">
-            <p className="text-xs font-bold text-outline uppercase tracking-widest">Workflow State</p>
-            <p className="text-sm font-semibold text-on-surface">{rfq.status?.replace('_', ' ')}</p>
-          </div>
-          <div className="flex gap-4 w-full sm:w-auto">
-            <button onClick={exportPDF} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 border border-outline-variant rounded-lg text-sm font-bold text-on-surface hover:bg-slate-50 transition-colors">
-              <span className="material-symbols-outlined text-base">picture_as_pdf</span>
-              Export PDF
-            </button>
-            <button
-              onClick={() => {
-                const allPriced = rfq?.items?.every((item) => itemPrices[item.id]?.unitPrice)
-                if (!allPriced) {
-                  setPriceError('Please fill in the unit price for all items before sending a quotation.')
-                  document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' })
-                  return
-                }
-                setPriceError('')
-                sendQuotation.mutate()
-              }}
-              disabled={sendQuotation.isPending || quotationSent}
-              className="flex-1 sm:flex-none signature-gradient text-white px-8 py-3 rounded-lg text-sm font-extrabold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-70"
-            >
-              {sendQuotation.isPending ? 'Sending...' : quotationSent ? '✓ Quotation Sent' : 'Send Quotation'}
-            </button>
-          </div>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }

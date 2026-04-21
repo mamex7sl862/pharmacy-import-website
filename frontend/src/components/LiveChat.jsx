@@ -116,7 +116,11 @@ export default function LiveChat() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className={`fixed z-50 flex flex-col items-end transition-all duration-300 ${
+      location.pathname === '/rfq' 
+        ? 'bottom-16 sm:bottom-20 right-4 sm:right-6' // More space from bottom on RFQ page, responsive spacing
+        : 'bottom-4 sm:bottom-6 right-4 sm:right-6'   // Default positioning, responsive spacing
+    }`}>
 
       {/* ── Chat Window ─────────────────────────────────────────────────────── */}
       <div className={`w-80 sm:w-96 bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col border border-outline-variant/20 transition-all duration-300 origin-bottom-right mb-4 ${

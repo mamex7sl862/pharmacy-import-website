@@ -91,7 +91,7 @@ export default function CustomerRFQDetail() {
             )}
             {rfq.shipping_method && (
               <div>
-                <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-1">Shipping</p>
+                <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-1">Delivery</p>
                 <p className="text-sm font-semibold text-on-surface capitalize">{rfq.shipping_method}</p>
               </div>
             )}

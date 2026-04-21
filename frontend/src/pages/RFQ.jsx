@@ -291,14 +291,15 @@ function Step3({ onNext, onBack }) {
               className={`w-full bg-surface-container-high rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary ${errors.date ? 'ring-1 ring-error' : ''}`} />
             {errors.date && <p className="text-[10px] text-error mt-0.5">{errors.date}</p>}
           </div>
-          {/* Shipping */}
+          {/* Delivery */}
           <div>
-            <label className="block text-[10px] font-bold text-outline uppercase tracking-widest mb-0.5">Shipping Method <span className="text-error">*</span></label>
+            <label className="block text-[10px] font-bold text-outline uppercase tracking-widest mb-0.5">Delivery Method <span className="text-error">*</span></label>
             <div className="relative">
               <select id="step3-ship" value={additionalInfo.shippingMethod}
                 onChange={e => { setAdditionalInfo({ shippingMethod: e.target.value }); setErrors(p => ({ ...p, ship: '' })) }}
                 className={`w-full bg-surface-container-high rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary appearance-none ${errors.ship ? 'ring-1 ring-error' : ''}`}>
                 <option value="">Select...</option>
+                <option value="city">City Delivery (Same Day)</option>
                 <option value="standard">Standard (3–5 days)</option>
                 <option value="air">Express Air</option>
                 <option value="sea">Sea Freight</option>
@@ -406,7 +407,7 @@ function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
                   <div><p className="text-[9px] font-bold text-outline uppercase">Delivery</p><p className="text-xs font-semibold text-on-surface">{additionalInfo.requestedDeliveryDate}</p></div>
                 )}
                 {additionalInfo.shippingMethod && (
-                  <div><p className="text-[9px] font-bold text-outline uppercase">Shipping</p><p className="text-xs font-semibold text-on-surface capitalize">{additionalInfo.shippingMethod}</p></div>
+                  <div><p className="text-[9px] font-bold text-outline uppercase">Delivery</p><p className="text-xs font-semibold text-on-surface capitalize">{additionalInfo.shippingMethod}</p></div>
                 )}
               </div>
             </div>
@@ -502,7 +503,7 @@ export default function RFQ() {
   const submitMutation = useMutation({
     mutationFn: async (payload) => {
       const files = useRFQStore.getState()._pendingFiles || []
-      const clean = { ...payload, products: payload.products.map(({ isService, ...r }) => r) }
+      const clean = { ...payload, products: payload.products.map(({ isService, stockQuantity, ...r }) => r) }
       if (files.length > 0) {
         const fd = new FormData()
         fd.append('customerInfo', JSON.stringify(clean.customerInfo))
@@ -570,7 +571,7 @@ export default function RFQ() {
             <Stepper step={currentStep} />
           </div>
 
-          {/* Step card — fills remaining height, buttons always visible */}
+          {/* Step card — fixed height, content scrolls inside, buttons always at bottom */}
           <div className="flex-1 bg-surface-container-lowest rounded-xl shadow-sm p-4 min-h-0 overflow-hidden flex flex-col">
             {currentStep === 1 && (
               <Step1 onNext={async (data) => {
