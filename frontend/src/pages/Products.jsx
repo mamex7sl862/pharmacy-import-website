@@ -4,387 +4,377 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
 import useRFQStore from '../store/rfqStore'
 
-// Static fallback — only products with genuinely relevant images
 const STATIC_PRODUCTS = [
-  { id: 's1',  name: 'Amoxicillin 500mg',       genericName: 'Amoxicillin Trihydrate',    brand: 'GlaxoSmithKline',  category: 'prescription',    packageSize: 'Box of 100 Capsules',        imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&q=80' },
-  { id: 's2',  name: 'Aspirin 100mg',            genericName: 'Acetylsalicylic Acid',      brand: 'Bayer AG',         category: 'prescription',    packageSize: 'Box of 100 Tablets',         imageUrl: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=600&q=80' },
-  { id: 's3',  name: 'Lantus SoloStar',          genericName: 'Insulin Glargine',          brand: 'Sanofi S.A.',      category: 'prescription',    packageSize: '5 × 3ml Prefilled Pens',     imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=600&q=80' },
-  { id: 's4',  name: 'Metformin HCL 1000mg',     genericName: 'Metformin Hydrochloride',   brand: 'Bayer Healthcare', category: 'prescription',    packageSize: 'Box of 60 Tablets',          imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=600&q=80' },
-  { id: 's5',  name: 'Nexium 40mg',              genericName: 'Esomeprazole Magnesium',    brand: 'AstraZeneca',      category: 'prescription',    packageSize: 'Box of 28 Capsules',         imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80' },
-  { id: 's6',  name: 'Antiseptic Solution 500ml',genericName: 'Chloroxylenol 4.8%',        brand: 'RB Health',        category: 'otc',             packageSize: '500ml Bottle',               imageUrl: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=600&q=80' },
-  { id: 's7',  name: 'Vitamin C 1000mg',         genericName: 'Ascorbic Acid',             brand: 'NutraCare',        category: 'otc',             packageSize: '90 Effervescent Tablets',    imageUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=600&q=80' },
-  { id: 's8',  name: 'Paracetamol 500mg',        genericName: 'Acetaminophen',             brand: 'Generic Pharma',   category: 'otc',             packageSize: 'Box of 100 Tablets',         imageUrl: 'https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?w=600&q=80' },
-  { id: 's9',  name: 'N95 Respirator Mask',      genericName: 'Filtering Facepiece',       brand: 'MedShield',        category: 'medical-supplies',packageSize: 'Box of 20 Masks',            imageUrl: 'https://images.unsplash.com/photo-1584634731339-252c581abfc5?w=600&q=80' },
-  { id: 's10', name: 'Nitrile Examination Gloves M', genericName: 'Powder-Free Nitrile',   brand: 'Ansell',           category: 'medical-supplies',packageSize: 'Box of 100 Gloves',          imageUrl: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=600&q=80' },
-  { id: 's11', name: 'Disposable Syringe 5ml',   genericName: 'Sterile Luer-Lock Syringe', brand: 'BD Medical',       category: 'medical-supplies',packageSize: 'Box of 100 Syringes',        imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=600&q=80' },
-  { id: 's12', name: 'Surgical Scalpel No.22',   genericName: 'Stainless Steel Blade',     brand: 'Swann-Morton',     category: 'surgical',        packageSize: 'Box of 100 Blades',          imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80' },
-  { id: 's13', name: 'Absorbable Suture 2-0',    genericName: 'Polyglycolic Acid Suture',  brand: 'Ethicon',          category: 'surgical',        packageSize: 'Box of 12 Sutures',          imageUrl: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=600&q=80' },
-  { id: 's14', name: 'Blood Glucose Meter',      genericName: 'Portable Glucometer',       brand: 'Roche Diagnostics',category: 'laboratory',      packageSize: '1 Device + 50 Test Strips',  imageUrl: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=600&q=80' },
-  { id: 's15', name: 'PCR Test Kit',             genericName: 'RT-PCR Diagnostic Kit',     brand: 'Roche Diagnostics',category: 'laboratory',      packageSize: 'Box of 96 Tests',            imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80' },
-  { id: 's16', name: 'Urine Dipstick 10 Panel',  genericName: 'Multi-Parameter Strip',     brand: 'Siemens',          category: 'laboratory',      packageSize: 'Bottle of 100 Strips',       imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&q=80' },
-  { id: 's17', name: 'Vitamin D3 1000IU',        genericName: 'Cholecalciferol',           brand: 'NutraCare',        category: 'personal-care',   packageSize: '90 Softgel Capsules',        imageUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=600&q=80' },
-  { id: 's18', name: 'Omega-3 Fish Oil 1000mg',  genericName: 'EPA/DHA Omega-3',           brand: 'Nordic Naturals',  category: 'personal-care',   packageSize: '90 Softgel Capsules',        imageUrl: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=600&q=80' },
-  { id: 's19', name: 'Multivitamin Complete',    genericName: 'Multi-Vitamin/Mineral',     brand: 'Centrum',          category: 'personal-care',   packageSize: 'Box of 60 Tablets',          imageUrl: 'https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?w=600&q=80' },
+  { id: 's1',  name: 'Amoxicillin 500mg',        genericName: 'Amoxicillin Trihydrate',  brand: 'GlaxoSmithKline',  category: 'prescription',     packageSize: 'Box / 100 Caps',       imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&q=75' },
+  { id: 's2',  name: 'Aspirin 100mg',             genericName: 'Acetylsalicylic Acid',   brand: 'Bayer AG',         category: 'prescription',     packageSize: 'Box / 100 Tabs',       imageUrl: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=400&q=75' },
+  { id: 's3',  name: 'Lantus SoloStar',           genericName: 'Insulin Glargine',       brand: 'Sanofi S.A.',      category: 'prescription',     packageSize: '5 × 3ml Pens',         imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&q=75' },
+  { id: 's4',  name: 'Metformin HCL 1000mg',      genericName: 'Metformin Hydrochloride',brand: 'Bayer Healthcare', category: 'prescription',     packageSize: 'Box / 60 Tabs',        imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400&q=75' },
+  { id: 's5',  name: 'Nexium 40mg',               genericName: 'Esomeprazole Magnesium', brand: 'AstraZeneca',      category: 'prescription',     packageSize: 'Box / 28 Caps',        imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=75' },
+  { id: 's6',  name: 'Antiseptic Solution 500ml', genericName: 'Chloroxylenol 4.8%',     brand: 'RB Health',        category: 'otc',              packageSize: '500ml Bottle',         imageUrl: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400&q=75' },
+  { id: 's7',  name: 'Vitamin C 1000mg',          genericName: 'Ascorbic Acid',          brand: 'NutraCare',        category: 'otc',              packageSize: '90 Effervescent Tabs', imageUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400&q=75' },
+  { id: 's8',  name: 'Paracetamol 500mg',         genericName: 'Acetaminophen',          brand: 'Generic Pharma',   category: 'otc',              packageSize: 'Box / 100 Tabs',       imageUrl: 'https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?w=400&q=75' },
+  { id: 's9',  name: 'N95 Respirator Mask',       genericName: 'Filtering Facepiece',    brand: 'MedShield',        category: 'medical-supplies', packageSize: 'Box / 20 Masks',       imageUrl: 'https://images.unsplash.com/photo-1584634731339-252c581abfc5?w=400&q=75' },
+  { id: 's10', name: 'Nitrile Gloves M',          genericName: 'Powder-Free Nitrile',    brand: 'Ansell',           category: 'medical-supplies', packageSize: 'Box / 100 Gloves',     imageUrl: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400&q=75' },
+  { id: 's11', name: 'Disposable Syringe 5ml',    genericName: 'Sterile Luer-Lock',      brand: 'BD Medical',       category: 'medical-supplies', packageSize: 'Box / 100 Syringes',   imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&q=75' },
+  { id: 's12', name: 'Surgical Scalpel No.22',    genericName: 'Stainless Steel Blade',  brand: 'Swann-Morton',     category: 'surgical',         packageSize: 'Box / 100 Blades',     imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=75' },
+  { id: 's13', name: 'Absorbable Suture 2-0',     genericName: 'Polyglycolic Acid',      brand: 'Ethicon',          category: 'surgical',         packageSize: 'Box / 12 Sutures',     imageUrl: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400&q=75' },
+  { id: 's14', name: 'Blood Glucose Meter',       genericName: 'Portable Glucometer',    brand: 'Roche Diagnostics',category: 'laboratory',       packageSize: '1 Device + 50 Strips', imageUrl: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400&q=75' },
+  { id: 's15', name: 'PCR Test Kit',              genericName: 'RT-PCR Diagnostic Kit',  brand: 'Roche Diagnostics',category: 'laboratory',       packageSize: 'Box / 96 Tests',       imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=75' },
+  { id: 's16', name: 'Urine Dipstick 10 Panel',   genericName: 'Multi-Parameter Strip',  brand: 'Siemens',          category: 'laboratory',       packageSize: 'Bottle / 100 Strips',  imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&q=75' },
+  { id: 's17', name: 'Vitamin D3 1000IU',         genericName: 'Cholecalciferol',        brand: 'NutraCare',        category: 'personal-care',    packageSize: '90 Softgels',          imageUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400&q=75' },
+  { id: 's18', name: 'Omega-3 Fish Oil 1000mg',   genericName: 'EPA/DHA Omega-3',        brand: 'Nordic Naturals',  category: 'personal-care',    packageSize: '90 Softgels',          imageUrl: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=400&q=75' },
+  { id: 's19', name: 'Multivitamin Complete',     genericName: 'Multi-Vitamin/Mineral',  brand: 'Centrum',          category: 'personal-care',    packageSize: 'Box / 60 Tabs',        imageUrl: 'https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?w=400&q=75' },
 ]
 
 const CATEGORY_CONFIG = {
-  'prescription':    { icon: 'medication',       color: 'bg-blue-50',   iconColor: 'text-blue-400',   label: 'Rx' },
-  'otc':             { icon: 'pill',              color: 'bg-green-50',  iconColor: 'text-green-400',  label: 'OTC' },
-  'medical-supplies':{ icon: 'medical_services',  color: 'bg-purple-50', iconColor: 'text-purple-400', label: 'Medical' },
-  'surgical':        { icon: 'content_cut',       color: 'bg-red-50',    iconColor: 'text-red-400',    label: 'Surgical' },
-  'laboratory':      { icon: 'biotech',           color: 'bg-amber-50',  iconColor: 'text-amber-400',  label: 'Lab' },
-  'personal-care':   { icon: 'nutrition',         color: 'bg-teal-50',   iconColor: 'text-teal-400',   label: 'Wellness' },
+  'prescription':     { icon: 'medication',      pill: 'bg-blue-50 text-blue-600',    dot: 'bg-blue-400',    label: 'Rx' },
+  'otc':              { icon: 'pill',             pill: 'bg-green-50 text-green-600',  dot: 'bg-green-400',   label: 'OTC' },
+  'medical-supplies': { icon: 'medical_services', pill: 'bg-violet-50 text-violet-600',dot: 'bg-violet-400',  label: 'Medical' },
+  'surgical':         { icon: 'content_cut',      pill: 'bg-red-50 text-red-600',      dot: 'bg-red-400',     label: 'Surgical' },
+  'laboratory':       { icon: 'biotech',          pill: 'bg-amber-50 text-amber-600',  dot: 'bg-amber-400',   label: 'Lab' },
+  'personal-care':    { icon: 'nutrition',        pill: 'bg-teal-50 text-teal-600',    dot: 'bg-teal-400',    label: 'Wellness' },
 }
+
 const CATEGORIES = [
-  { key: '',               label: 'All Products',       icon: 'apps' },
-  { key: 'prescription',   label: 'Prescription',       icon: 'medication' },
-  { key: 'otc',            label: 'OTC',                icon: 'pill' },
-  { key: 'medical-supplies', label: 'Medical Supplies', icon: 'medical_services' },
-  { key: 'surgical',       label: 'Surgical',           icon: 'content_cut' },
-  { key: 'laboratory',     label: 'Laboratory',         icon: 'biotech' },
-  { key: 'personal-care',  label: 'Personal Care',      icon: 'nutrition' },
+  { key: '',                 label: 'All Products',    icon: 'apps' },
+  { key: 'prescription',     label: 'Prescription',    icon: 'medication' },
+  { key: 'otc',              label: 'OTC',             icon: 'pill' },
+  { key: 'medical-supplies', label: 'Medical Supplies',icon: 'medical_services' },
+  { key: 'surgical',         label: 'Surgical',        icon: 'content_cut' },
+  { key: 'laboratory',       label: 'Laboratory',      icon: 'biotech' },
+  { key: 'personal-care',    label: 'Personal Care',   icon: 'nutrition' },
 ]
 
 const MANUFACTURERS = ['GlaxoSmithKline', 'Pfizer Inc.', 'Sanofi S.A.', 'Novartis AG']
 
-// ── Category Dropdown ─────────────────────────────────────────────────────────
-function CategoryDropdown({ categories, selected, onSelect }) {
-  const [open, setOpen] = useState(false)
-  const ref = React.useRef(null)
-
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const allCat   = categories[0]                    // { key: '', label: 'All Products' }
-  const subCats  = categories.slice(1)              // the 6 specific categories
-  const activeCat = categories.find(c => c.key === selected) || allCat
-
-  return (
-    <div ref={ref} className="relative">
-      {/* Trigger — "All Categories" button */}
-      <button
-        onClick={() => {
-          onSelect('')          // always reset to All when clicking the trigger
-          setOpen(o => !o)
-        }}
-        className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
-          open
-            ? 'bg-primary text-white border-primary shadow-md'
-            : 'bg-surface-container-low text-on-surface border-outline-variant/30 hover:border-primary/40 hover:bg-primary/5'
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-lg">{allCat.icon}</span>
-          <span>{allCat.label}</span>
-        </div>
-        <span className={`material-symbols-outlined text-lg transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
-          expand_more
-        </span>
-      </button>
-
-      {/* Dropdown list */}
-      {open && (
-        <div className="mt-2 w-full bg-white rounded-xl shadow-xl border border-outline-variant/20 overflow-hidden z-20">
-          {subCats.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => { onSelect(cat.key); setOpen(false) }}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all text-left border-b border-slate-50 last:border-0 ${
-                selected === cat.key
-                  ? 'bg-primary/8 text-primary font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
-              }`}
-            >
-              <span className={`material-symbols-outlined text-lg ${selected === cat.key ? 'text-primary' : 'text-slate-400'}`}>
-                {cat.icon}
-              </span>
-              <span>{cat.label}</span>
-              {selected === cat.key && (
-                <span className="ml-auto material-symbols-outlined text-primary text-base">check</span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Active filter chip — shown when a sub-category is selected */}
-      {selected && (
-        <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg">
-          <span className="material-symbols-outlined text-primary text-sm">{activeCat.icon}</span>
-          <span className="text-xs font-bold text-primary flex-1">{activeCat.label}</span>
-          <button
-            onClick={() => onSelect('')}
-            className="text-primary/60 hover:text-primary transition-colors"
-            title="Clear filter"
-          >
-            <span className="material-symbols-outlined text-sm">close</span>
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
+// ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message, onDone }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 2500)
-    return () => clearTimeout(t)
-  }, [onDone])
+  useEffect(() => { const t = setTimeout(onDone, 2200); return () => clearTimeout(t) }, [onDone])
   return (
-    <div className="fixed top-20 right-8 z-[100] bg-on-background text-white p-4 rounded-xl flex items-center gap-4 shadow-2xl pointer-events-none animate-fade-in">
-      <span className="material-symbols-outlined text-green-400">check_circle</span>
-      <div className="pr-8">
-        <p className="text-sm font-bold">Added to RFQ</p>
-        <p className="text-xs opacity-80">{message}</p>
+    <div className="fixed top-20 right-6 z-[100] bg-gray-900 text-white px-4 py-3 rounded-xl flex items-center gap-3 shadow-2xl animate-fade-in">
+      <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
+      <div>
+        <p className="text-sm font-semibold">Added to RFQ</p>
+        <p className="text-xs text-gray-400 truncate max-w-[180px]">{message}</p>
       </div>
     </div>
   )
 }
 
+// ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, isAdded, onAdd }) {
   const [imgError, setImgError] = useState(false)
-  const stock = product.stockQuantity ?? product.stock_quantity ?? 0
+  const stock      = product.stockQuantity ?? product.stock_quantity ?? 0
   const outOfStock = stock === 0
-
-  const stockBadge = outOfStock
-    ? { label: 'Out of Stock', cls: 'bg-red-50 text-red-600' }
-    : stock <= 10
-    ? { label: `Low Stock: ${stock} left`, cls: 'bg-amber-50 text-amber-700' }
-    : { label: `${stock} in stock`, cls: 'bg-green-50 text-green-700' }
+  const cfg        = CATEGORY_CONFIG[product.category] || CATEGORY_CONFIG['prescription']
 
   return (
-    <div className={`bg-surface-container-lowest rounded-2xl p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,63,135,0.08)] group border border-transparent hover:border-primary/10 ${outOfStock ? 'opacity-70' : ''}`}>
-      {/* Image */}
-      <div className="aspect-[4/3] rounded-xl overflow-hidden mb-4 bg-surface-container-low relative">
+    <div className={`bg-white rounded-xl border border-gray-100 hover:border-primary/25 hover:shadow-md transition-all duration-200 group flex flex-col overflow-hidden ${outOfStock ? 'opacity-60' : ''}`}>
+
+      {/* Image — compact fixed height */}
+      <div className="relative h-36 bg-gray-50 flex-shrink-0 overflow-hidden">
         {product.imageUrl && !imgError ? (
-          <img src={product.imageUrl} alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={() => setImgError(true)} />
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setImgError(true)}
+          />
         ) : (
-          (() => {
-            const cfg = CATEGORY_CONFIG[product.category] || CATEGORY_CONFIG['prescription']
-            return (
-              <div className={`w-full h-full flex flex-col items-center justify-center gap-3 ${cfg.color}`}>
-                <span className={`material-symbols-outlined text-5xl ${cfg.iconColor}`} style={{ fontVariationSettings: "'FILL' 1" }}>{cfg.icon}</span>
-                <span className={`text-[10px] font-bold uppercase tracking-widest ${cfg.iconColor} opacity-60`}>{cfg.label}</span>
-              </div>
-            )
-          })()
+          <div className="w-full h-full flex items-center justify-center bg-gray-50">
+            <span className="material-symbols-outlined text-5xl text-gray-200" style={{ fontVariationSettings: "'FILL' 1" }}>
+              {cfg.icon}
+            </span>
+          </div>
         )}
-        {/* Stock badge */}
-        <span className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-bold ${stockBadge.cls}`}>
-          {stockBadge.label}
+        {/* Category pill */}
+        <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm ${cfg.pill}`}>
+          {cfg.label}
         </span>
+        {/* Stock indicator */}
+        {outOfStock ? (
+          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600">
+            Out of Stock
+          </span>
+        ) : stock > 0 && stock <= 10 ? (
+          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700">
+            Low: {stock}
+          </span>
+        ) : null}
       </div>
 
-      {/* Info */}
-      <div className="space-y-1 mb-4">
-        <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest font-headline">{product.brand}</p>
-        <h3 className="font-headline font-bold text-lg text-on-surface leading-tight">{product.name}</h3>
+      {/* Content */}
+      <div className="p-3 flex flex-col flex-1">
+        {/* Brand */}
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate mb-0.5">{product.brand}</p>
+
+        {/* Name */}
+        <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 mb-1">{product.name}</h3>
+
+        {/* Generic name */}
         {product.genericName && (
-          <p className="text-xs text-on-surface-variant">Generic: <span className="font-medium">{product.genericName}</span></p>
+          <p className="text-xs text-gray-500 truncate mb-2">{product.genericName}</p>
         )}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-surface-container">
-          <div className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-sm text-on-surface-variant">inventory_2</span>
-            <span className="text-xs text-on-surface-variant">{product.packageSize}</span>
+
+        {/* Pack size + price */}
+        <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="material-symbols-outlined text-gray-400 text-sm flex-shrink-0">inventory_2</span>
+            <span className="text-xs text-gray-500 truncate">{product.packageSize}</span>
           </div>
           {product.price && (
-            <span className="text-sm font-bold text-primary">{product.currency || 'USD'} {parseFloat(product.price).toFixed(2)}</span>
+            <span className="text-xs font-bold text-primary ml-2 flex-shrink-0">
+              {product.currency || 'USD'} {parseFloat(product.price).toFixed(2)}
+            </span>
           )}
         </div>
-      </div>
 
-      {/* Action */}
-      <button
-        onClick={() => !isAdded && !outOfStock && onAdd(product)}
-        disabled={isAdded || outOfStock}
-        className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
-          outOfStock
-            ? 'bg-surface-container text-outline cursor-not-allowed'
-            : isAdded
-            ? 'bg-secondary-container text-on-secondary-container cursor-default'
-            : 'border border-primary/20 text-primary hover:bg-primary hover:text-on-primary'
-        }`}
-      >
-        <span className="material-symbols-outlined text-lg">
-          {outOfStock ? 'remove_shopping_cart' : isAdded ? 'check' : 'add_shopping_cart'}
-        </span>
-        {outOfStock ? 'Out of Stock' : isAdded ? 'Added to RFQ' : 'Add to RFQ'}
-      </button>
+        {/* Add to RFQ button */}
+        <button
+          onClick={() => !isAdded && !outOfStock && onAdd(product)}
+          disabled={isAdded || outOfStock}
+          className={`mt-3 w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+            outOfStock
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : isAdded
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : 'bg-primary/5 text-primary border border-primary/20 hover:bg-primary hover:text-white hover:border-primary'
+          }`}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {outOfStock ? 'block' : isAdded ? 'check' : 'add_shopping_cart'}
+          </span>
+          {outOfStock ? 'Unavailable' : isAdded ? 'Added to RFQ' : 'Add to RFQ'}
+        </button>
+      </div>
     </div>
   )
 }
 
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [search, setSearch] = useState('')
-  const [toast, setToast] = useState(null)
+  const [search, setSearch]             = useState('')
+  const [toast, setToast]               = useState(null)
   const [selectedManufacturers, setSelectedManufacturers] = useState([])
   const category = searchParams.get('category') || ''
   const { addProduct, selectedProducts } = useRFQStore()
 
-  const toggleManufacturer = (m) => {
-    setSelectedManufacturers((prev) =>
-      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
-    )
-  }
+  const toggleManufacturer = (m) =>
+    setSelectedManufacturers(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', search, category],
-    queryFn: () => api.get('/products', { params: { text: search, category, page: 1, limit: 24 } }).then((r) => r.data),
+    queryFn: () => api.get('/products', { params: { text: search, category, page: 1, limit: 24 } }).then(r => r.data),
     keepPreviousData: true,
     retry: 1,
   })
 
-  const handleAdd = (product) => {
-    addProduct(product)
-    setToast(product.name)
-  }
+  const handleAdd = (product) => { addProduct(product); setToast(product.name) }
 
-  // Use DB products if available, otherwise fall back to static list
   const rawProducts = data?.items?.length > 0 ? data.items : STATIC_PRODUCTS
-
-  // Client-side filter for static products (DB already filters server-side)
-  const products = (data?.items?.length > 0 ? rawProducts : rawProducts.filter((p) => {
-    const matchCat = !category || p.category === category
-    const q = search.toLowerCase()
-    const matchSearch = !q || p.name.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.genericName?.toLowerCase().includes(q)
-    return matchCat && matchSearch
-  })).filter((p) => {
-    if (selectedManufacturers.length === 0) return true
-    return selectedManufacturers.some((m) => p.brand?.toLowerCase().includes(m.toLowerCase()))
-  })
+  const products = (data?.items?.length > 0
+    ? rawProducts
+    : rawProducts.filter(p => {
+        const matchCat    = !category || p.category === category
+        const q           = search.toLowerCase()
+        const matchSearch = !q || p.name.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.genericName?.toLowerCase().includes(q)
+        return matchCat && matchSearch
+      })
+  ).filter(p => selectedManufacturers.length === 0 || selectedManufacturers.some(m => p.brand?.toLowerCase().includes(m.toLowerCase())))
 
   return (
-    <div className="bg-surface font-body text-on-surface">
+    <div className="bg-gray-50 min-h-screen font-body text-on-surface">
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
-      <main className="pt-8 pb-32 px-8 max-w-[1600px] mx-auto flex gap-12">
-        {/* Sidebar */}
-        <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-24 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
-          <div className="mb-6">
-            <h2 className="font-headline font-extrabold text-2xl tracking-tight text-primary">Categories</h2>
-            <p className="text-on-surface-variant text-sm mt-1">Filter by Therapeutic Class</p>
+      {/* Page header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Product Catalog</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {products.length} product{products.length !== 1 ? 's' : ''} available
+            </p>
+          </div>
+          {/* Search */}
+          <div className="relative w-full sm:w-80">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search products, brands..."
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all outline-none"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-6 flex gap-6">
+
+        {/* ── Sidebar ── */}
+        <aside className="hidden lg:flex flex-col w-52 flex-shrink-0 self-start sticky top-20">
+
+          {/* Categories */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Category</p>
+            </div>
+            <nav className="p-2">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat.key}
+                  onClick={() => setSearchParams(cat.key ? { category: cat.key } : {})}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                    category === cat.key
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">{cat.icon}</span>
+                  <span className="truncate">{cat.label}</span>
+                </button>
+              ))}
+            </nav>
           </div>
 
-          {/* All Categories — dropdown trigger */}
-          <CategoryDropdown
-            categories={CATEGORIES}
-            selected={category}
-            onSelect={(key) => setSearchParams(key ? { category: key } : {})}
-          />
-
           {/* Manufacturer filter */}
-          <div className="mt-8">
-            <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant/70 mb-4">Manufacturer</h3>
-            <div className="space-y-3">
-              {MANUFACTURERS.map((m) => (
-                <label key={m} className="flex items-center gap-3 cursor-pointer group">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Manufacturer</p>
+              {selectedManufacturers.length > 0 && (
+                <button onClick={() => setSelectedManufacturers([])} className="text-xs text-red-500 hover:text-red-700 font-medium">
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="p-3 space-y-1">
+              {MANUFACTURERS.map(m => (
+                <label key={m} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 group">
                   <input
                     type="checkbox"
                     checked={selectedManufacturers.includes(m)}
                     onChange={() => toggleManufacturer(m)}
-                    className="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                    className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
                   />
-                  <span className={`text-sm transition-colors ${selectedManufacturers.includes(m) ? 'text-primary font-bold' : 'text-on-surface group-hover:text-primary'}`}>{m}</span>
+                  <span className={`text-xs transition-colors truncate ${selectedManufacturers.includes(m) ? 'text-primary font-semibold' : 'text-gray-600 group-hover:text-primary'}`}>
+                    {m}
+                  </span>
                 </label>
               ))}
             </div>
-            {selectedManufacturers.length > 0 && (
-              <button
-                onClick={() => setSelectedManufacturers([])}
-                className="mt-4 text-xs text-error hover:underline font-medium"
-              >
-                Clear Filters
-              </button>
-            )}
           </div>
         </aside>
 
-        {/* Main */}
-        <section className="flex-grow">
-          <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div>
-              <h1 className="font-headline font-extrabold text-5xl tracking-tighter text-on-surface mb-2">Our Products</h1>
-              <p className="text-on-surface-variant max-w-md">Browse our full catalog of pharmaceutical and medical supply products.</p>
-            </div>
-            <div className="relative w-full md:w-96 group">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">
-                search
-              </span>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products, brands, generics..."
-                className="w-full bg-surface-container-high border-none rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all outline-none placeholder:text-on-surface-variant/60"
-              />
-            </div>
+        {/* ── Product Grid ── */}
+        <section className="flex-1 min-w-0">
+
+          {/* Mobile category pills */}
+          <div className="flex gap-2 overflow-x-auto pb-3 mb-4 lg:hidden no-scrollbar">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.key}
+                onClick={() => setSearchParams(cat.key ? { category: cat.key } : {})}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  category === cat.key
+                    ? 'bg-primary text-white'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/40 hover:text-primary'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">{cat.icon}</span>
+                {cat.label}
+              </button>
+            ))}
           </div>
+
+          {/* Active filter chip */}
+          {(category || selectedManufacturers.length > 0) && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {category && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
+                  {CATEGORIES.find(c => c.key === category)?.label}
+                  <button onClick={() => setSearchParams({})} className="hover:text-primary/60">
+                    <span className="material-symbols-outlined text-xs">close</span>
+                  </button>
+                </span>
+              )}
+              {selectedManufacturers.map(m => (
+                <span key={m} className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
+                  {m}
+                  <button onClick={() => toggleManufacturer(m)} className="hover:text-gray-500">
+                    <span className="material-symbols-outlined text-xs">close</span>
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Skeleton */}
           {isLoading && !data ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-surface-container-lowest rounded-2xl p-6 animate-pulse">
-                  <div className="aspect-[4/3] rounded-xl bg-surface-container mb-6" />
-                  <div className="h-3 bg-surface-container rounded mb-2 w-1/3" />
-                  <div className="h-5 bg-surface-container rounded mb-2 w-2/3" />
-                  <div className="h-3 bg-surface-container rounded w-1/2" />
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse">
+                  <div className="h-36 bg-gray-100" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  </div>
                 </div>
               ))}
             </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-20 text-gray-400">
+              <span className="material-symbols-outlined text-5xl mb-3 block opacity-30">search_off</span>
+              <p className="font-medium text-gray-600">No products found</p>
+              <p className="text-sm mt-1">Try a different search term or category.</p>
+              <button
+                onClick={() => { setSearch(''); setSearchParams({}) }}
+                className="mt-4 text-sm text-primary font-medium hover:underline"
+              >
+                Clear all filters
+              </button>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {products.map((product) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {products.map(product => (
                 <ProductCard
                   key={product.id}
                   product={product}
-                  isAdded={selectedProducts.some((p) => p.productId === product.id)}
+                  isAdded={selectedProducts.some(p => p.productId === product.id)}
                   onAdd={handleAdd}
                 />
               ))}
-              {products.length === 0 && (
-                <div className="col-span-3 text-center py-24 text-on-surface-variant">
-                  <span className="material-symbols-outlined text-6xl mb-4 block opacity-30">search_off</span>
-                  <p className="font-medium text-lg">No products found</p>
-                  <p className="text-sm mt-1">Try a different search term or category.</p>
-                </div>
-              )}
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {/* Sticky RFQ bar */}
       {selectedProducts.length > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-2xl bg-white/80 backdrop-blur-xl border border-white/20 rounded-2xl py-4 px-6 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined">description</span>
-            </div>
-            <div>
-              <p className="font-headline font-bold text-on-surface">RFQ Summary</p>
-              <p className="text-xs text-on-surface-variant font-medium">
-                {selectedProducts.length} item{selectedProducts.length !== 1 ? 's' : ''} selected
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:block text-right">
-              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Est. Priority</p>
-              <p className="text-sm font-bold text-primary uppercase">Urgent</p>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xl">
+          <div className="bg-white border border-gray-200 rounded-2xl px-5 py-3 flex items-center justify-between shadow-xl shadow-gray-200/80">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary text-lg">description</span>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedProducts.length} item{selectedProducts.length !== 1 ? 's' : ''} in RFQ
+                </p>
+                <p className="text-xs text-gray-500">Ready to request quote</p>
+              </div>
             </div>
             <Link
-              to="/rfq"
-              className="bg-primary text-on-primary px-8 py-3 rounded-xl font-headline font-bold text-sm shadow-md shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+              to="/portal/rfq"
+              className="bg-primary text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-sm"
             >
-              Review Quote
+              Review RFQ →
             </Link>
           </div>
         </div>
