@@ -315,12 +315,14 @@ export default function Home() {
       <section className="bg-primary text-white py-16 md:py-20 px-4 md:px-8">
         <div className="max-w-screen-2xl mx-auto">
           <h2 className="text-center font-headline text-3xl md:text-4xl font-extrabold mb-12 md:mb-16">Why Choose Us</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-6">
+          <div className="flex flex-wrap justify-center gap-8 lg:gap-10">
             {(WHY_US || DEFAULT_WHY).map((item, i) => (
-              <div key={item.title} className="text-center">
-                <span className="material-symbols-outlined text-4xl mb-4 text-blue-300 block" style={{ fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
-                <h4 className="font-headline font-bold text-lg mb-2">{item.title}</h4>
-                <p className="text-blue-200 text-xs px-4">{item.desc}</p>
+              <div key={item.title} className="text-center w-44 flex-shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="material-symbols-outlined text-3xl text-blue-200" style={{ fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
+                </div>
+                <h4 className="font-headline font-bold text-base mb-2">{item.title}</h4>
+                <p className="text-blue-200 text-xs leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
