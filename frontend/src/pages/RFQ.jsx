@@ -465,49 +465,88 @@ function Step3({ onNext, onBack }) {
         </div>
 
           <div className="bg-surface-container-lowest rounded-2xl p-8">
-          <h2 className="text-xl font-bold mb-2 flex items-center gap-2 font-headline">
-            <span className="material-symbols-outlined text-primary">description</span>
-            Verification Documents
-          </h2>
-          <p className="text-sm text-outline mb-6">Upload any required prescriptions, clinic licenses, or specialized handling certifications.</p>
-          <label className="border-2 border-dashed border-outline-variant rounded-2xl p-10 flex flex-col items-center justify-center text-center bg-surface-container-low/30 hover:bg-surface-container-low transition-colors cursor-pointer group">
-            <div className="w-16 h-16 bg-primary-fixed rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_upload</span>
-            </div>
-            <div className="font-bold text-on-surface">Drop files here or click to upload</div>
-            <div className="text-xs text-outline mt-1">PDF, JPG, PNG (Max 10MB · up to 5 files)</div>
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png,.xlsx"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold flex items-center gap-2 font-headline">
+              <span className="material-symbols-outlined text-primary">description</span>
+              Verification Documents
+            </h2>
+            {files.length > 0 && (
+              <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                {files.length} / 5 file{files.length !== 1 ? 's' : ''} added
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-outline mb-5">Upload any required prescriptions, clinic licenses, or specialized handling certifications.</p>
 
-          {/* Uploaded files list */}
+          {/* ── File list ABOVE the drop zone ── */}
           {files.length > 0 && (
-            <div className="mt-6 space-y-3">
+            <div className="mb-5 space-y-2">
               {files.map((file, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-surface-container rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-primary">
+                <div key={i} className="flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="material-symbols-outlined text-green-600 flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
                       {file.type === 'application/pdf' ? 'picture_as_pdf' : 'image'}
                     </span>
-                    <div>
-                      <p className="text-sm font-medium text-on-surface">{file.name}</p>
-                      <p className="text-xs text-outline">{(file.size / 1024).toFixed(0)} KB</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-green-900 truncate">{file.name}</p>
+                      <p className="text-xs text-green-600">{(file.size / 1024).toFixed(0)} KB</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
-                    className="text-error hover:bg-error-container/20 p-1.5 rounded-full transition-all"
+                    className="text-error hover:bg-error-container/20 p-1.5 rounded-full transition-all flex-shrink-0 ml-3"
                   >
                     <span className="material-symbols-outlined text-lg">close</span>
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* ── Drop zone — changes appearance when files are added ── */}
+          {files.length < 5 && (
+            <label className={`border-2 border-dashed rounded-2xl flex items-center justify-center text-center cursor-pointer transition-all group ${
+              files.length > 0
+                ? 'border-primary/40 bg-primary/5 hover:bg-primary/10 py-5 px-6 gap-4'
+                : 'border-outline-variant bg-surface-container-low/30 hover:bg-surface-container-low p-10 flex-col'
+            }`}>
+              {files.length > 0 ? (
+                /* Compact "add more" state */
+                <>
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined text-primary text-xl">add</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-primary">Add more files</p>
+                    <p className="text-xs text-on-surface-variant">{5 - files.length} slot{5 - files.length !== 1 ? 's' : ''} remaining · PDF, JPG, PNG (Max 10MB)</p>
+                  </div>
+                </>
+              ) : (
+                /* Full upload state */
+                <>
+                  <div className="w-16 h-16 bg-primary-fixed rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_upload</span>
+                  </div>
+                  <p className="font-bold text-on-surface">Drop files here or click to upload</p>
+                  <p className="text-xs text-outline mt-1">PDF, JPG, PNG (Max 10MB · up to 5 files)</p>
+                </>
+              )}
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.xlsx"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+          )}
+
+          {/* All slots used */}
+          {files.length >= 5 && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+              <span className="material-symbols-outlined text-amber-600">info</span>
+              Maximum of 5 files reached. Remove a file to add another.
             </div>
           )}
         </div>
