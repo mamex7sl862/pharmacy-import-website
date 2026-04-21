@@ -2,10 +2,10 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 
 const SIDEBAR_NAV = [
-  { to: '/portal',   icon: 'dashboard',      label: 'Dashboard',      exact: true },
-  { to: '/portal/rfq', icon: 'add_circle',   label: 'New RFQ' },
-  { to: '/products', icon: 'inventory_2',    label: 'Product Catalog' },
-  { to: '/compare',  icon: 'compare_arrows', label: 'Compare' },
+  { to: '/portal',         icon: 'dashboard',      label: 'Dashboard',      exact: true },
+  { to: '/portal/rfq',     icon: 'add_circle',     label: 'New RFQ' },
+  { to: '/products',       icon: 'inventory_2',    label: 'Product Catalog' },
+  { to: '/portal/compare', icon: 'compare_arrows', label: 'Compare' },
 ]
 
 export default function CustomerLayout({ children }) {
@@ -81,7 +81,7 @@ export default function CustomerLayout({ children }) {
           <span className="material-symbols-outlined">inventory_2</span>
           <span className="text-[11px] font-semibold">Products</span>
         </Link>
-        <Link to="/compare" className="flex flex-col items-center text-slate-400">
+        <Link to="/portal/compare" className="flex flex-col items-center text-slate-400">
           <span className="material-symbols-outlined">compare_arrows</span>
           <span className="text-[11px] font-semibold">Compare</span>
         </Link>

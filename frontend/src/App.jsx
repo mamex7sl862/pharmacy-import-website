@@ -62,6 +62,7 @@ export default function App() {
                 <Route index element={<CustomerDashboard />} />
                 <Route path="rfq" element={<RFQ />} />
                 <Route path="rfqs/:id" element={<CustomerRFQDetail />} />
+                <Route path="compare" element={<Compare />} />
               </Routes>
             </CustomerLayout>
           </ProtectedRoute>
