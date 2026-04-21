@@ -771,9 +771,16 @@ export default function RFQ() {
     <div className="min-h-screen bg-surface">
       {/* Top nav for RFQ wizard */}
       <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md h-16 flex justify-between items-center px-8">
-        <Link to="/" className="text-xl font-bold tracking-tight text-primary font-headline">PharmaLink Pro</Link>
-        <div className="hidden md:flex items-center space-x-8">
-          <Link to="/portal" className="text-primary border-b-2 border-primary pb-1 font-medium">RFQ History</Link>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/portal"
+            className="flex items-center gap-1.5 text-sm font-bold text-on-surface-variant hover:text-primary transition-colors"
+          >
+            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            <span className="hidden sm:inline">Back to Dashboard</span>
+          </Link>
+          <span className="text-outline-variant/40 hidden sm:inline">|</span>
+          <Link to="/" className="text-xl font-bold tracking-tight text-primary font-headline hidden sm:block">PharmaLink Pro</Link>
         </div>
         <div className="flex items-center space-x-4">
           <span className="material-symbols-outlined text-on-surface-variant cursor-pointer">notifications</span>
