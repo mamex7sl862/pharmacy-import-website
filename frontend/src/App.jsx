@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import ScrollToTop from './components/ScrollToTop'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import CustomerLayout from './components/CustomerLayout'
 import Home from './pages/Home'
 import Products from './pages/Products'
 import Categories from './pages/Categories'
@@ -53,8 +54,18 @@ export default function App() {
           </ProtectedRoute>
         } />
 
-        {/* RFQ wizard — has its own navbar, no public Navbar/Footer */}
-        <Route path="/rfq" element={<ProtectedRoute role="customer"><RFQ /></ProtectedRoute>} />
+        {/* Customer portal routes with sidebar */}
+        <Route path="/portal/*" element={
+          <ProtectedRoute role="customer">
+            <CustomerLayout>
+              <Routes>
+                <Route index element={<CustomerDashboard />} />
+                <Route path="rfq" element={<RFQ />} />
+                <Route path="rfqs/:id" element={<CustomerRFQDetail />} />
+              </Routes>
+            </CustomerLayout>
+          </ProtectedRoute>
+        } />
 
         {/* Public + customer routes */}
         <Route path="*" element={
@@ -68,6 +79,7 @@ export default function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/rfq" element={<ProtectedRoute role="customer"><RFQ /></ProtectedRoute>} />
                 <Route path="/rfq/success/:rfqNumber" element={<RFQSuccess />} />
                 <Route path="/track" element={<TrackRFQ />} />
                 <Route path="/compare" element={<Compare />} />
@@ -77,14 +89,6 @@ export default function App() {
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
-                <Route path="/portal/*" element={
-                  <ProtectedRoute role="customer">
-                    <Routes>
-                      <Route index element={<CustomerDashboard />} />
-                      <Route path="rfqs/:id" element={<CustomerRFQDetail />} />
-                    </Routes>
-                  </ProtectedRoute>
-                } />
               </Routes>
             </main>
             <Footer />

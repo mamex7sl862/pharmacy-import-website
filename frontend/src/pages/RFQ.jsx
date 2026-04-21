@@ -524,9 +524,7 @@ export default function RFQ() {
   const stepTitles = ['Customer Information', 'Product Selection', 'Logistics & Documents', 'Review & Submit']
 
   return (
-    // Full viewport, no overflow
     <div className="h-screen overflow-hidden bg-surface flex flex-col">
-
       {/* ── Navbar ── */}
       <nav className="flex-shrink-0 h-14 bg-white/90 backdrop-blur-md border-b border-surface-container flex items-center justify-between px-4 md:px-8 z-50">
         <div className="flex items-center gap-3">
@@ -535,7 +533,7 @@ export default function RFQ() {
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
           <span className="text-outline-variant/40">|</span>
-          <span className="font-headline font-bold text-primary text-base">PharmaLink</span>
+          <span className="font-headline font-bold text-primary text-base">Request for Quotation</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setProfileOpen(o => !o)} className="text-on-surface-variant hover:text-primary">
@@ -567,7 +565,6 @@ export default function RFQ() {
 
           {/* Page title + stepper */}
           <div className="flex-shrink-0 mb-3">
-            <h1 className="text-lg font-extrabold text-on-surface font-headline tracking-tight">Request for Quotation</h1>
             <Stepper step={currentStep} />
           </div>
 
