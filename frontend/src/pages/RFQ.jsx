@@ -23,20 +23,18 @@ const STEP_LABELS = ['Contact', 'Product Details', 'Logistics', 'Review']
 function Stepper({ step }) {
   const pct = (step / 4) * 100
   return (
-    <div className="mb-10">
-      <div className="flex justify-between items-end mb-4">
-        <div>
-          <span className="text-sm font-bold text-primary flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px]">{step}</span>
-            Step {step}: {STEP_LABELS[step - 1]}
-          </span>
-        </div>
-        <span className="text-sm font-medium text-on-surface-variant">{Math.round(pct)}% Complete</span>
+    <div className="mb-5">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+          <span className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[9px] font-bold">{step}</span>
+          Step {step}: {STEP_LABELS[step - 1]}
+        </span>
+        <span className="text-xs font-semibold text-on-surface-variant">{Math.round(pct)}% Complete</span>
       </div>
-      <div className="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+      <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
         <div className="h-full bg-primary transition-all duration-500 ease-out" style={{ width: `${pct}%` }} />
       </div>
-      <div className="grid grid-cols-4 mt-3 text-[11px] font-bold text-outline uppercase tracking-wider">
+      <div className="grid grid-cols-4 mt-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">
         {STEP_LABELS.map((l, i) => (
           <div key={l} className={`${i === 0 ? 'text-left' : i === 3 ? 'text-right' : 'text-center'} ${i + 1 <= step ? 'text-primary' : ''}`}>{l}</div>
         ))}
@@ -411,206 +409,165 @@ function Step3({ onNext, onBack }) {
   // Expose files to parent via store for submission
   useRFQStore.getState()._pendingFiles = files
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-      <div className="md:col-span-8 space-y-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Left: Logistics + Documents + Notes */}
+      <div className="lg:col-span-2 space-y-3">
         {/* Logistics */}
-        <div className="bg-surface-container-lowest rounded-2xl p-8">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2 font-headline">
-            <span className="material-symbols-outlined text-primary">local_shipping</span>
+        <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+          <h2 className="text-xs font-bold text-on-surface mb-3 flex items-center gap-2 uppercase tracking-widest">
+            <span className="material-symbols-outlined text-primary text-base">local_shipping</span>
             Logistics &amp; Delivery
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-on-surface-variant ml-1">Preferred Delivery Date <span className="text-error">*</span></label>
-              <div className="relative">
-                <input
-                  id="step3-deliveryDate"
-                  type="date"
-                  value={additionalInfo.requestedDeliveryDate}
-                  onChange={(e) => { setAdditionalInfo({ requestedDeliveryDate: e.target.value }); setErrors(p => ({ ...p, deliveryDate: '' })) }}
-                  className={`input-field appearance-none ${errors.deliveryDate ? 'ring-2 ring-error border-error' : ''}`}
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline pointer-events-none">calendar_today</span>
-              </div>
-              {errors.deliveryDate && (
-                <p className="text-xs text-error ml-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">error</span>{errors.deliveryDate}
-                </p>
-              )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-outline uppercase tracking-widest">Delivery Date <span className="text-error">*</span></label>
+              <input
+                id="step3-deliveryDate"
+                type="date"
+                value={additionalInfo.requestedDeliveryDate}
+                onChange={(e) => { setAdditionalInfo({ requestedDeliveryDate: e.target.value }); setErrors(p => ({ ...p, deliveryDate: '' })) }}
+                className={`input-field py-2 text-sm ${errors.deliveryDate ? 'ring-2 ring-error border-error' : ''}`}
+              />
+              {errors.deliveryDate && <p className="text-xs text-error flex items-center gap-1"><span className="material-symbols-outlined text-sm">error</span>{errors.deliveryDate}</p>}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-on-surface-variant ml-1">Shipping Method <span className="text-error">*</span></label>
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-outline uppercase tracking-widest">Shipping Method <span className="text-error">*</span></label>
               <div className="relative">
                 <select
                   id="step3-shippingMethod"
                   value={additionalInfo.shippingMethod}
                   onChange={(e) => { setAdditionalInfo({ shippingMethod: e.target.value }); setErrors(p => ({ ...p, shippingMethod: '' })) }}
-                  className={`input-field appearance-none ${errors.shippingMethod ? 'ring-2 ring-error border-error' : ''}`}
+                  className={`input-field py-2 text-sm appearance-none ${errors.shippingMethod ? 'ring-2 ring-error border-error' : ''}`}
                 >
-                  <option value="">Select shipping method...</option>
+                  <option value="">Select method...</option>
                   <option value="standard">Standard (3-5 Business Days)</option>
-                  <option value="air">Express (Next Day)</option>
+                  <option value="air">Express Air Freight</option>
                   <option value="sea">Sea Freight</option>
                   <option value="land">Cold Chain (Temperature Regulated)</option>
                 </select>
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline pointer-events-none">expand_more</span>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-base">expand_more</span>
               </div>
-              {errors.shippingMethod && (
-                <p className="text-xs text-error ml-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">error</span>{errors.shippingMethod}
-                </p>
-              )}
+              {errors.shippingMethod && <p className="text-xs text-error flex items-center gap-1"><span className="material-symbols-outlined text-sm">error</span>{errors.shippingMethod}</p>}
             </div>
           </div>
         </div>
 
-          <div className="bg-surface-container-lowest rounded-2xl p-8">
+        {/* Documents */}
+        <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-bold flex items-center gap-2 font-headline">
-              <span className="material-symbols-outlined text-primary">description</span>
-              Verification Documents
+            <h2 className="text-xs font-bold text-on-surface flex items-center gap-2 uppercase tracking-widest">
+              <span className="material-symbols-outlined text-primary text-base">attach_file</span>
+              Documents <span className="text-[10px] font-normal text-outline normal-case tracking-normal">(optional)</span>
             </h2>
             {files.length > 0 && (
-              <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-                {files.length} / 5 file{files.length !== 1 ? 's' : ''} added
-              </span>
+              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{files.length}/5 files</span>
             )}
           </div>
-          <p className="text-sm text-outline mb-5">Upload any required prescriptions, clinic licenses, or specialized handling certifications.</p>
-
-          {/* ── File list ABOVE the drop zone ── */}
           {files.length > 0 && (
-            <div className="mb-5 space-y-2">
+            <div className="mb-2 space-y-1.5">
               {files.map((file, i) => (
-                <div key={i} className="flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-xl">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="material-symbols-outlined text-green-600 flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <div key={i} className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="material-symbols-outlined text-green-600 text-base flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
                       {file.type === 'application/pdf' ? 'picture_as_pdf' : 'image'}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-green-900 truncate">{file.name}</p>
-                      <p className="text-xs text-green-600">{(file.size / 1024).toFixed(0)} KB</p>
+                      <p className="text-xs font-semibold text-green-900 truncate">{file.name}</p>
+                      <p className="text-[10px] text-green-600">{(file.size / 1024).toFixed(0)} KB</p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="text-error hover:bg-error-container/20 p-1.5 rounded-full transition-all flex-shrink-0 ml-3"
-                  >
-                    <span className="material-symbols-outlined text-lg">close</span>
+                  <button type="button" onClick={() => removeFile(i)} className="text-error hover:bg-error/10 p-1 rounded-full ml-2 flex-shrink-0">
+                    <span className="material-symbols-outlined text-base">close</span>
                   </button>
                 </div>
               ))}
             </div>
           )}
-
-          {/* ── Drop zone — changes appearance when files are added ── */}
-          {files.length < 5 && (
-            <label className={`border-2 border-dashed rounded-2xl flex items-center justify-center text-center cursor-pointer transition-all group ${
+          {files.length < 5 ? (
+            <label className={`border-2 border-dashed rounded-xl cursor-pointer transition-all group flex items-center gap-3 ${
               files.length > 0
-                ? 'border-primary/40 bg-primary/5 hover:bg-primary/10 py-5 px-6 gap-4'
-                : 'border-outline-variant bg-surface-container-low/30 hover:bg-surface-container-low p-10 flex-col'
+                ? 'border-primary/30 bg-primary/5 hover:bg-primary/10 px-4 py-2.5'
+                : 'border-outline-variant bg-surface-container-low/40 hover:bg-surface-container-low px-4 py-4 flex-col text-center'
             }`}>
               {files.length > 0 ? (
-                /* Compact "add more" state */
                 <>
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-primary text-xl">add</span>
-                  </div>
-                  <div className="text-left">
+                  <span className="material-symbols-outlined text-primary text-xl group-hover:scale-110 transition-transform">add_circle</span>
+                  <div>
                     <p className="text-sm font-bold text-primary">Add more files</p>
-                    <p className="text-xs text-on-surface-variant">{5 - files.length} slot{5 - files.length !== 1 ? 's' : ''} remaining · PDF, JPG, PNG (Max 10MB)</p>
+                    <p className="text-[10px] text-on-surface-variant">{5 - files.length} slot{5 - files.length !== 1 ? 's' : ''} left · PDF, JPG, PNG, max 10MB</p>
                   </div>
                 </>
               ) : (
-                /* Full upload state */
                 <>
-                  <div className="w-16 h-16 bg-primary-fixed rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_upload</span>
-                  </div>
-                  <p className="font-bold text-on-surface">Drop files here or click to upload</p>
-                  <p className="text-xs text-outline mt-1">PDF, JPG, PNG (Max 10MB · up to 5 files)</p>
+                  <span className="material-symbols-outlined text-primary text-2xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_upload</span>
+                  <p className="text-sm font-bold text-on-surface">Drop files or click to upload</p>
+                  <p className="text-xs text-outline">PDF, JPG, PNG · Max 10MB · Up to 5 files</p>
                 </>
               )}
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png,.xlsx"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx" className="hidden" onChange={handleFileChange} />
             </label>
-          )}
-
-          {/* All slots used */}
-          {files.length >= 5 && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-              <span className="material-symbols-outlined text-amber-600">info</span>
-              Maximum of 5 files reached. Remove a file to add another.
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <span className="material-symbols-outlined text-amber-600 text-base">info</span>
+              Maximum 5 files reached. Remove one to add another.
             </div>
           )}
         </div>
 
         {/* Notes */}
-        <div className="bg-surface-container-lowest rounded-2xl p-8">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2 font-headline">
-            <span className="material-symbols-outlined text-primary">chat_bubble</span>
-            Special Instructions
+        <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+          <h2 className="text-xs font-bold text-on-surface mb-2 flex items-center gap-2 uppercase tracking-widest">
+            <span className="material-symbols-outlined text-primary text-base">chat_bubble</span>
+            Special Instructions <span className="text-[10px] font-normal text-outline normal-case tracking-normal">(optional)</span>
           </h2>
+          <textarea
+            rows={3}
+            value={additionalInfo.message}
+            onChange={(e) => setAdditionalInfo({ message: e.target.value })}
+            placeholder="Storage requirements, delivery preferences, special handling notes..."
+            className="input-field resize-none text-sm py-2"
+          />
+        </div>
+      </div>
+
+      {/* Right: Summary + Actions */}
+      <div className="space-y-3">
+        <div className="bg-primary rounded-xl p-4 text-white shadow-lg shadow-primary/30">
+          <h3 className="text-xs font-bold mb-3 uppercase tracking-widest">Request Summary</h3>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-on-surface-variant ml-1">Message / Notes</label>
-            <textarea
-              rows={4}
-              value={additionalInfo.message}
-              onChange={(e) => setAdditionalInfo({ message: e.target.value })}
-              placeholder="Enter any specific storage requirements or delivery window preferences..."
-              className="input-field resize-none"
-            />
+            {[
+              { label: 'Customer', value: customerInfo.companyName || customerInfo.fullName || '—' },
+              { label: 'Products', value: `${selectedProducts.length} item${selectedProducts.length !== 1 ? 's' : ''}` },
+              { label: 'Status', value: 'Drafting' },
+            ].map((r) => (
+              <div key={r.label} className="flex justify-between items-center border-b border-white/10 pb-2 last:border-0 last:pb-0">
+                <span className="text-xs text-white/70">{r.label}</span>
+                <span className="text-sm font-bold">{r.value}</span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* Sidebar */}
-      <div className="md:col-span-4">
-        <div className="sticky top-24 space-y-6">
-          <div className="bg-primary rounded-3xl p-6 text-on-primary shadow-xl shadow-primary/30">
-            <h3 className="text-lg font-bold mb-4">Request Summary</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-start border-b border-on-primary/10 pb-3">
-                <span className="text-xs font-medium opacity-80">Customer</span>
-                <span className="text-sm font-bold text-right">{customerInfo.companyName || '—'}</span>
-              </div>
-              <div className="flex justify-between items-start border-b border-on-primary/10 pb-3">
-                <span className="text-xs font-medium opacity-80">Products</span>
-                <span className="text-sm font-bold">{selectedProducts.length} items</span>
-              </div>
-              <div className="flex justify-between items-start">
-                <span className="text-xs font-medium opacity-80">Status</span>
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 bg-on-tertiary-container rounded-full"></span>
-                  <span className="text-xs font-bold text-on-primary-container">Drafting</span>
-                </div>
-              </div>
-            </div>
+        <div className="bg-surface-container-lowest rounded-xl p-4 border border-outline-variant/20 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="material-symbols-outlined text-primary text-base">verified_user</span>
+            <span className="text-sm font-bold text-on-surface">Quality Assured</span>
           </div>
-          <div className="bg-surface-container-high/50 rounded-2xl p-6 border border-outline-variant/20">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="material-symbols-outlined text-primary text-lg">verified_user</span>
-              <span className="text-sm font-bold">Quality Assured</span>
-            </div>
-            <p className="text-xs text-on-surface-variant leading-relaxed">All clinical orders are verified by our pharmaceutical logistics team to ensure compliant cold-chain protocols and license validity.</p>
-          </div>
+          <p className="text-xs text-on-surface-variant leading-relaxed">All orders are verified by our pharmaceutical logistics team for cold-chain compliance and license validity.</p>
         </div>
-      </div>
 
-      <div className="md:col-span-12 mt-4 flex items-center justify-between py-6 border-t border-surface-container-high">
-        <button onClick={onBack} className="px-8 py-3 rounded-xl border border-outline text-on-surface-variant font-bold flex items-center gap-2 hover:bg-surface-container-low transition-all">
-          <span className="material-symbols-outlined text-lg">arrow_back</span> Back
-        </button>
-        <div className="flex items-center gap-4">
-          <span className="hidden md:block text-xs font-bold text-outline">One step remaining</span>
-          <button onClick={handleNext} className="px-10 py-3 rounded-xl signature-gradient text-white font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
-            Next Step <span className="material-symbols-outlined text-lg">arrow_forward</span>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleNext}
+            className="w-full py-3 rounded-xl signature-gradient text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            Next Step <span className="material-symbols-outlined text-base">arrow_forward</span>
+          </button>
+          <button
+            onClick={onBack}
+            className="w-full py-2.5 rounded-xl border border-outline-variant text-on-surface-variant font-semibold text-sm flex items-center justify-center gap-2 hover:bg-surface-container-low transition-all"
+          >
+            <span className="material-symbols-outlined text-base">arrow_back</span> Back
           </button>
         </div>
       </div>
@@ -941,16 +898,18 @@ export default function RFQ() {
         </div>
       </nav>
 
-      <main className="pt-24 pb-16 px-6 md:px-12">
+      <main className="pt-20 pb-6 px-4 md:px-8">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-10">
-            <h1 className="text-4xl font-extrabold text-on-surface font-headline tracking-tight mb-2">Request for Quotation</h1>
-            <p className="text-on-surface-variant max-w-lg">
-              {currentStep === 1 && 'Step 1: Customer Information. Provide the administrative details for the purchasing entity.'}
-              {currentStep === 2 && 'Step 2: Product Selection. Search and add clinical products to your quotation request.'}
-              {currentStep === 3 && 'Step 3: Additional Details. Provide logistics and verification documents.'}
-              {currentStep === 4 && 'Step 4: Review & Submit. Validate your request before sending.'}
-            </p>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-extrabold text-on-surface font-headline tracking-tight">Request for Quotation</h1>
+              <p className="text-xs text-on-surface-variant mt-0.5">
+                {currentStep === 1 && 'Step 1 — Customer Information'}
+                {currentStep === 2 && 'Step 2 — Product Selection'}
+                {currentStep === 3 && 'Step 3 — Logistics & Documents'}
+                {currentStep === 4 && 'Step 4 — Review & Submit'}
+              </p>
+            </div>
           </div>
 
           <Stepper step={currentStep} />
