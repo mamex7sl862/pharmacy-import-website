@@ -3,36 +3,47 @@ import { useLocation } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 import api from '../lib/api'
 
-const POLL_INTERVAL = 3000 // ms — how often to check for new messages
+const POLL_INTERVAL = 3000
 
 export default function LiveChat() {
   const location = useLocation()
   const { user } = useAuthStore()
 
-  const [isOpen, setIsOpen]       = useState(false)
+  const [isOpen, setIsOpen]         = useState(false)
   const [inputValue, setInputValue] = useState('')
-  const [chatId, setChatId]       = useState(null)   // DB session id
-  const [messages, setMessages]   = useState([])
-  const [loading, setLoading]     = useState(false)
-  const [sending, setSending]     = useState(false)
-  const [isOnline, setIsOnline]   = useState(true)   // backend reachability
-  const [initError, setInitError] = useState(false)  // session init failed
+  const [chatId, setChatId]         = useState(null)
+  const [messages, setMessages]     = useState([])
+  const [loading, setLoading]       = useState(false)
+  const [sending, setSending]       = useState(false)
+  const [isOnline, setIsOnline]     = useState(true)
+  const [initError, setInitError]   = useState(false)
 
   const msgsEndRef  = useRef(null)
   const pollRef     = useRef(null)
-  const chatIdRef   = useRef(null) // keep latest chatId accessible inside interval
+  const chatIdRef   = useRef(null)
+  const containerRef = useRef(null)  // for click-outside detection
 
-  // Sync ref so the poll closure always has the latest chatId
   useEffect(() => { chatIdRef.current = chatId }, [chatId])
 
-  // Scroll to bottom whenever messages change
+  // Scroll to bottom on new messages
   useEffect(() => {
     if (isOpen && msgsEndRef.current) {
       msgsEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isOpen])
 
-  // ── Fetch messages from DB ──────────────────────────────────────────────────
+  // Click outside to close
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
   const fetchMessages = useCallback(async (id) => {
     if (!id) return
     try {
@@ -41,9 +52,8 @@ export default function LiveChat() {
     } catch (_) {}
   }, [])
 
-  // ── Start / resume a chat session ───────────────────────────────────────────
   const initSession = useCallback(async () => {
-    if (chatId) return // already have a session
+    if (chatId) return
     setLoading(true)
     setInitError(false)
     try {
@@ -56,7 +66,6 @@ export default function LiveChat() {
       setIsOnline(true)
       await fetchMessages(data.id)
     } catch (_) {
-      // If backend is down, show error state
       setInitError(true)
       setIsOnline(false)
       setMessages([{
@@ -71,7 +80,6 @@ export default function LiveChat() {
     }
   }, [chatId, user, fetchMessages])
 
-  // ── Open chat: init session + start polling ─────────────────────────────────
   useEffect(() => {
     if (!isOpen) {
       clearInterval(pollRef.current)
@@ -84,10 +92,8 @@ export default function LiveChat() {
     return () => clearInterval(pollRef.current)
   }, [isOpen, initSession, fetchMessages])
 
-  // ── Hide on admin pages — AFTER all hooks ───────────────────────────────────
   if (location.pathname.startsWith('/admin')) return null
 
-  // ── Send a message ──────────────────────────────────────────────────────────
   const handleSend = async (e) => {
     e.preventDefault()
     if (!inputValue.trim() || !chatId || sending) return
@@ -95,7 +101,6 @@ export default function LiveChat() {
     setInputValue('')
     setSending(true)
 
-    // Optimistic update
     const optimistic = {
       id: `opt-${Date.now()}`,
       is_from_admin: false,
@@ -112,61 +117,70 @@ export default function LiveChat() {
         senderId: user?.id || null,
         isAdmin: false,
       })
-      // Refresh to get the real DB record
       await fetchMessages(chatId)
     } catch (_) {
-      // Keep optimistic message visible even if request failed
     } finally {
       setSending(false)
     }
   }
 
+  const formatTime = (dateStr) => {
+    return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
   return (
-    <div className={`fixed z-40 flex flex-col items-end transition-all duration-300 ${
-      location.pathname.startsWith('/portal/rfq') 
-        ? 'bottom-20 sm:bottom-24 right-4 sm:right-6' // More space from bottom on RFQ page
-        : 'bottom-4 sm:bottom-6 right-4 sm:right-6'   // Default positioning
-    }`}>
-
-      {/* ── Chat Window ─────────────────────────────────────────────────────── */}
-      <div className={`w-80 sm:w-96 bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col border border-outline-variant/20 transition-all duration-300 origin-bottom-right mb-4 ${
-        isOpen ? 'scale-100 opacity-100 pointer-events-auto h-[500px]' : 'scale-75 opacity-0 pointer-events-none h-0'
-      }`}>
-
-        {/* Header */}
-        <div className="bg-primary text-white p-4 flex items-center justify-between shadow-sm">
+    <div
+      ref={containerRef}
+      className={`fixed z-40 flex flex-col items-end ${
+        location.pathname.startsWith('/portal/rfq')
+          ? 'bottom-20 sm:bottom-24 right-4 sm:right-6'
+          : 'bottom-4 sm:bottom-6 right-4 sm:right-6'
+      }`}
+    >
+      {/* ── Chat Window ──────────────────────────────────────────────────────── */}
+      <div className={`w-[340px] sm:w-[380px] bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col border border-gray-200 mb-3 transition-all duration-300 origin-bottom-right ${
+        isOpen
+          ? 'opacity-100 scale-100 pointer-events-auto translate-y-0'
+          : 'opacity-0 scale-95 pointer-events-none translate-y-4'
+      }`}
+        style={{ height: isOpen ? '480px' : '0px', transition: 'height 0.3s ease, opacity 0.3s ease, transform 0.3s ease' }}
+      >
+        {/* ── Header ─────────────────────────────────────────────────────────── */}
+        <div className="bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg">E</div>
-              <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-primary rounded-full ${isOnline ? 'bg-green-400' : 'bg-gray-400'}`} />
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-base">
+                P
+              </div>
+              <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-primary ${isOnline ? 'bg-green-400' : 'bg-gray-400'}`} />
             </div>
             <div>
-              <h4 className="font-headline font-bold leading-tight">PharmaLink Support</h4>
-              <p className="text-[10px] text-blue-100 font-medium flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-300' : 'bg-gray-300'}`} />
-                {isOnline ? (user ? `Signed in as ${user.fullName}` : 'Emily is active now') : 'Currently offline'}
+              <p className="text-white font-bold text-sm leading-tight">PharmaLink Support</p>
+              <p className="text-blue-200 text-[11px] flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full inline-block ${isOnline ? 'bg-green-300' : 'bg-gray-300'}`} />
+                {isOnline ? 'Online — typically replies instantly' : 'Offline'}
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors text-white/80 hover:text-white"
+            className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition-colors text-white/80 hover:text-white"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-container-lowest">
+        {/* ── Messages ───────────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-gray-50 min-h-0">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
             </div>
           ) : initError ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 px-4 text-center">
-              <span className="material-symbols-outlined text-4xl text-outline/40">wifi_off</span>
-              <p className="text-sm font-semibold text-on-surface">Unable to connect</p>
-              <p className="text-xs text-on-surface-variant">The support service is temporarily unavailable.</p>
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+              <span className="material-symbols-outlined text-4xl text-gray-300">wifi_off</span>
+              <p className="text-sm font-semibold text-gray-700">Unable to connect</p>
+              <p className="text-xs text-gray-500">Support service is temporarily unavailable.</p>
               <button
                 onClick={() => { setInitError(false); setChatId(null); initSession() }}
                 className="mt-1 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
@@ -176,19 +190,35 @@ export default function LiveChat() {
             </div>
           ) : (
             <>
-              <p className="text-[10px] text-center text-on-surface-variant font-medium uppercase tracking-widest py-2">Today</p>
+              {/* Date separator */}
+              <div className="flex items-center gap-2 py-1">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Today</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
               {messages.map((m) => (
-                <div key={m.id} className={`flex ${m.is_from_admin ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                <div
+                  key={m.id}
+                  className={`flex flex-col ${m.is_from_admin ? 'items-start' : 'items-end'}`}
+                >
+                  {/* Sender label — only for admin messages */}
+                  {m.is_from_admin && (
+                    <p className="text-[10px] font-semibold text-primary ml-1 mb-1">{m.sender_name}</p>
+                  )}
+
+                  <div className={`max-w-[78%] px-3.5 py-2.5 text-sm leading-relaxed ${
                     m.is_from_admin
-                      ? 'bg-surface-container-low text-on-surface border border-outline-variant/10 rounded-tl-sm'
-                      : 'bg-primary text-white rounded-tr-sm'
+                      ? 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-gray-200 shadow-sm'
+                      : 'bg-primary text-white rounded-2xl rounded-tr-sm shadow-sm'
                   }`}>
-                    {!m.is_from_admin ? null : (
-                      <p className="text-[10px] font-bold text-primary mb-1">{m.sender_name}</p>
-                    )}
                     {m.message}
                   </div>
+
+                  {/* Timestamp */}
+                  <p className={`text-[10px] text-gray-400 mt-1 ${m.is_from_admin ? 'ml-1' : 'mr-1'}`}>
+                    {formatTime(m.created_at)}
+                  </p>
                 </div>
               ))}
               <div ref={msgsEndRef} />
@@ -196,38 +226,43 @@ export default function LiveChat() {
           )}
         </div>
 
-        {/* Input */}
-        <form onSubmit={handleSend} className="p-3 border-t border-outline-variant/10 bg-white">
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={e => setInputValue(e.target.value)}
-              placeholder={initError ? 'Connection failed — retry above' : chatId ? 'Send a message...' : 'Connecting...'}
-              disabled={!chatId || sending || initError}
-              className="w-full bg-surface-container-high rounded-full py-3.5 pl-5 pr-14 outline-none focus:ring-1 focus:ring-primary focus:bg-surface-container-lowest text-sm transition-all text-on-surface disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={!inputValue.trim() || !chatId || sending || initError}
-              className="absolute right-1.5 w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center disabled:opacity-40 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[20px] ml-0.5">
-                {sending ? 'progress_activity' : 'send'}
-              </span>
-            </button>
-          </div>
+        {/* ── Input ──────────────────────────────────────────────────────────── */}
+        <form
+          onSubmit={handleSend}
+          className="flex-shrink-0 px-3 py-3 border-t border-gray-100 bg-white flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            placeholder={initError ? 'Connection failed…' : chatId ? 'Type a message…' : 'Connecting…'}
+            disabled={!chatId || sending || initError}
+            className="flex-1 bg-gray-100 rounded-full py-2.5 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!inputValue.trim() || !chatId || sending || initError}
+            className="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-40 hover:bg-primary/90 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]" style={{ marginLeft: '2px' }}>
+              {sending ? 'progress_activity' : 'send'}
+            </span>
+          </button>
         </form>
       </div>
 
       {/* ── Toggle Button ────────────────────────────────────────────────────── */}
       <button
         onClick={() => setIsOpen(o => !o)}
-        className="w-16 h-16 bg-primary text-white rounded-full shadow-[0_10px_25px_rgba(0,63,135,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all outline-none"
+        className="w-14 h-14 bg-primary text-white rounded-full shadow-[0_8px_24px_rgba(0,63,135,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all outline-none relative"
       >
-        <span className="material-symbols-outlined text-3xl">
-          {isOpen ? 'expand_more' : 'chat_bubble'}
+        <span className={`material-symbols-outlined text-2xl transition-transform duration-300 ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
+          {isOpen ? 'keyboard_arrow_down' : 'chat_bubble'}
         </span>
+        {/* Unread dot — shows when closed and there are messages */}
+        {!isOpen && messages.some(m => m.is_from_admin) && (
+          <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white" />
+        )}
       </button>
     </div>
   )
