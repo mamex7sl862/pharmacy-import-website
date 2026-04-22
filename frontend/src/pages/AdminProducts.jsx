@@ -152,6 +152,11 @@ export default function AdminProducts() {
     onSuccess: () => { qc.invalidateQueries(['admin-products']); setDeleteConfirm(null) },
   })
 
+  const togglePublish = useMutation({
+    mutationFn: (id) => api.patch(`/admin/products/${id}/publish`),
+    onSuccess: () => qc.invalidateQueries(['admin-products']),
+  })
+
   const handleSave = (form) => {
     if (modal?.id) {
       updateProduct.mutate({ id: modal.id, ...form })
@@ -280,8 +285,24 @@ export default function AdminProducts() {
                     Edit
                   </button>
                   <button
+                    onClick={() => togglePublish.mutate(product.id)}
+                    disabled={togglePublish.isPending}
+                    title={product.isActive ? 'Unpublish — hide from catalog' : 'Publish — show in catalog'}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+                      product.isActive
+                        ? 'border border-amber-300 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500'
+                        : 'border border-emerald-300 text-emerald-700 hover:bg-emerald-500 hover:text-white hover:border-emerald-500'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {product.isActive ? 'visibility_off' : 'visibility'}
+                    </span>
+                    {product.isActive ? 'Unpublish' : 'Publish'}
+                  </button>
+                  <button
                     onClick={() => setDeleteConfirm(product)}
                     className="p-2 rounded-xl border border-outline-variant/30 text-outline hover:text-error hover:border-error/30 transition-all"
+                    title="Delete product"
                   >
                     <span className="material-symbols-outlined text-sm">delete</span>
                   </button>

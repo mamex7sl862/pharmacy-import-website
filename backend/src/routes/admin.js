@@ -282,6 +282,20 @@ router.put('/products/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// ── PATCH /api/admin/products/:id/publish — toggle is_active ─────────────────
+router.patch('/products/:id/publish', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE products SET is_active = NOT is_active, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, is_active AS "isActive", name`,
+      [req.params.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    res.json({ success: true, isActive: rows[0].isActive, name: rows[0].name })
+  } catch (err) { next(err) }
+})
+
 router.delete('/products/:id', async (req, res, next) => {
   try {
     await pool.query('UPDATE products SET is_active = false, updated_at = NOW() WHERE id = $1', [req.params.id])
