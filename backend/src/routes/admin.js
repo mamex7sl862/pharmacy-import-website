@@ -384,10 +384,6 @@ router.delete('/testimonials/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
-// Admin testimonials (proxied through content routes)
-router.get('/testimonials',     async (req, res, next) => { req.url = '/admin/testimonials';     require('./content')(req, res, next) })
-router.post('/testimonials',    async (req, res, next) => { req.url = '/admin/testimonials';     require('./content')(req, res, next) })
-router.put('/testimonials/:id', async (req, res, next) => { req.url = `/admin/testimonials/${req.params.id}`; require('./content')(req, res, next) })
-router.delete('/testimonials/:id', async (req, res, next) => { req.url = `/admin/testimonials/${req.params.id}`; require('./content')(req, res, next) })
+// Admin testimonials (proxied through content routes) — REMOVED (duplicates above)
 
 module.exports = router
