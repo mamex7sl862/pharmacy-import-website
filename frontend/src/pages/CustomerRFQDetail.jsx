@@ -1,27 +1,41 @@
 import { useParams, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import api from '../lib/api'
 
 const STATUS_BADGE = {
   NEW:            'bg-blue-50 text-blue-700',
   UNDER_REVIEW:   'bg-yellow-50 text-yellow-700',
   QUOTATION_SENT: 'bg-green-50 text-green-700',
-  CLOSED:         'bg-slate-100 text-slate-500',
+  CLOSED:         'bg-emerald-50 text-emerald-700',
 }
 
 const STATUS_LABEL = {
   NEW:            'Pending Review',
   UNDER_REVIEW:   'Under Review',
   QUOTATION_SENT: 'Quotation Sent',
-  CLOSED:         'Closed',
+  CLOSED:         'Deal Closed',
 }
 
 export default function CustomerRFQDetail() {
   const { id } = useParams()
+  const queryClient = useQueryClient()
+  const [showAcceptModal, setShowAcceptModal] = useState(false)
+  const [accepted, setAccepted] = useState(false)
 
   const { data: rfq, isLoading } = useQuery({
     queryKey: ['customer-rfq', id],
     queryFn: () => api.get(`/customer/rfqs/${id}`).then((r) => r.data),
+  })
+
+  const acceptMutation = useMutation({
+    mutationFn: () => api.post(`/customer/rfqs/${id}/accept`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-rfq', id] })
+      queryClient.invalidateQueries({ queryKey: ['customer-rfqs'] })
+      setShowAcceptModal(false)
+      setAccepted(true)
+    },
   })
 
   const downloadRFQCopy = async () => {
@@ -137,12 +151,32 @@ export default function CustomerRFQDetail() {
                     {item.notes && <p className="text-xs text-on-surface-variant italic mt-1">"{item.notes}"</p>}
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-headline font-extrabold text-primary">{item.quantity}</p>
-                    <p className="text-[10px] text-outline uppercase">{item.unit}</p>
+                    {item.unit_price ? (
+                      <div>
+                        <p className="text-sm font-bold text-on-surface">{item.currency || 'USD'} {parseFloat(item.unit_price).toFixed(2)} / unit</p>
+                        <p className="text-xs text-primary font-semibold">Total: {item.currency || 'USD'} {(parseFloat(item.unit_price) * item.quantity).toFixed(2)}</p>
+                        <p className="text-[10px] text-outline uppercase">Qty: {item.quantity} {item.unit}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xl font-headline font-extrabold text-primary">{item.quantity}</p>
+                        <p className="text-[10px] text-outline uppercase">{item.unit}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+            {/* Grand total if prices exist */}
+            {rfq.items?.some(i => i.unit_price) && (
+              <div className="p-5 border-t border-surface-container bg-surface-container-low flex items-center justify-between">
+                <span className="font-headline font-bold text-on-surface">Grand Total</span>
+                <span className="font-headline font-extrabold text-xl text-primary">
+                  {rfq.items[0]?.currency || 'USD'}{' '}
+                  {rfq.items.reduce((sum, i) => sum + (parseFloat(i.unit_price || 0) * i.quantity), 0).toFixed(2)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Message */}
@@ -179,27 +213,54 @@ export default function CustomerRFQDetail() {
             </div>
           )}
 
-          {/* Status info */}
+          {/* ── QUOTATION SENT: Accept or Download ─────────────────────────── */}
           {rfq.status === 'QUOTATION_SENT' && (
             <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
               <div className="flex items-start gap-4">
                 <span className="material-symbols-outlined text-green-600 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>mark_email_read</span>
                 <div className="flex-1">
-                  <h3 className="font-headline font-bold text-green-800 mb-1">Quotation Ready</h3>
-                  <p className="text-sm text-green-700 mb-3">A formal quotation has been sent to your email. Download the PDF above to review pricing and terms.</p>
-                  <button
-                    onClick={downloadQuotationPDF}
-                    className="flex items-center gap-2 px-4 py-2 signature-gradient text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-colors shadow-md"
-                  >
-                    <span className="material-symbols-outlined text-base">picture_as_pdf</span>
-                    Download Quotation PDF
-                  </button>
+                  <h3 className="font-headline font-bold text-green-800 mb-1">Quotation Ready — Review & Accept</h3>
+                  <p className="text-sm text-green-700 mb-4">
+                    A formal quotation has been sent to your email. Download the PDF to review pricing and terms, then click <strong>Accept Quotation</strong> to confirm the deal.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={downloadQuotationPDF}
+                      className="flex items-center gap-2 px-4 py-2.5 border border-green-400 text-green-800 bg-white rounded-lg text-sm font-semibold hover:bg-green-100 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                      Download Quotation PDF
+                    </button>
+                    <button
+                      onClick={() => setShowAcceptModal(true)}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-md"
+                    >
+                      <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                      Accept Quotation
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {rfq.status !== 'QUOTATION_SENT' && (
+          {/* ── CLOSED: Deal confirmed banner ──────────────────────────────── */}
+          {(rfq.status === 'CLOSED' || accepted) && (
+            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <span className="material-symbols-outlined text-emerald-600 text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                <div>
+                  <h3 className="font-headline font-bold text-emerald-800 text-lg mb-1">Deal Closed — Thank You!</h3>
+                  <p className="text-sm text-emerald-700">
+                    You have accepted the quotation for <strong>{rfq.rfq_number}</strong>. Our team will be in touch shortly to arrange delivery and payment.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quotation pending info */}
+          {rfq.status !== 'QUOTATION_SENT' && rfq.status !== 'CLOSED' && !accepted && (
             <div className="bg-surface-container-low rounded-2xl p-5 border border-outline-variant/20">
               <div className="flex items-start gap-3">
                 <span className="material-symbols-outlined text-outline text-xl">info</span>
@@ -223,6 +284,76 @@ export default function CustomerRFQDetail() {
           </div>
         </div>
       </div>
+
+      {/* ── Accept Confirmation Modal ─────────────────────────────────────── */}
+      {showAcceptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-emerald-600 text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>handshake</span>
+              </div>
+              <div>
+                <h2 className="font-headline font-extrabold text-xl text-on-surface">Accept Quotation?</h2>
+                <p className="text-sm text-outline">{rfq.rfq_number}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-on-surface-variant mb-4 leading-relaxed">
+              By accepting this quotation, you confirm that you agree to the pricing and terms provided. The RFQ will be marked as <strong className="text-emerald-700">Deal Closed</strong> and our team will proceed with your order.
+            </p>
+
+            {/* Price summary */}
+            {rfq.items?.some(i => i.unit_price) && (
+              <div className="bg-surface-container-low rounded-xl p-4 mb-6">
+                <p className="text-xs font-bold text-outline uppercase tracking-widest mb-3">Order Summary</p>
+                <div className="space-y-2">
+                  {rfq.items.filter(i => i.unit_price).map(item => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-on-surface-variant">{item.product_name} × {item.quantity}</span>
+                      <span className="font-semibold text-on-surface">{item.currency || 'USD'} {(parseFloat(item.unit_price) * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-outline-variant/30 pt-2 flex justify-between font-bold">
+                    <span className="text-on-surface">Total</span>
+                    <span className="text-primary text-base">
+                      {rfq.items[0]?.currency || 'USD'}{' '}
+                      {rfq.items.reduce((sum, i) => sum + (parseFloat(i.unit_price || 0) * i.quantity), 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {acceptMutation.isError && (
+              <p className="text-sm text-red-600 mb-4 bg-red-50 px-4 py-2 rounded-lg">
+                Something went wrong. Please try again.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAcceptModal(false)}
+                disabled={acceptMutation.isPending}
+                className="flex-1 px-4 py-3 border border-outline-variant rounded-xl text-sm font-semibold text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => acceptMutation.mutate()}
+                disabled={acceptMutation.isPending}
+                className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {acceptMutation.isPending ? (
+                  <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span> Processing...</>
+                ) : (
+                  <><span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span> Confirm Acceptance</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

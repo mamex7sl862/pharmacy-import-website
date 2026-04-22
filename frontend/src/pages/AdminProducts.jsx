@@ -77,7 +77,7 @@ function ProductModal({ product, onClose, onSave, isSaving }) {
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-outline uppercase tracking-widest">Currency</label>
               <select value={form.currency} onChange={set('currency')} className="input-field">
-                {['USD','EUR','GBP','AED','SAR'].map((c) => <option key={c}>{c}</option>)}
+                {['USD','ETB'].map((c) => <option key={c} value={c}>{c === 'USD' ? 'USD — US Dollar' : 'ETB — Ethiopian Birr'}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">

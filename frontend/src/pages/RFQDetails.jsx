@@ -217,7 +217,7 @@ export default function RFQDetails() {
                   onChange={(e) => setCurrency(e.target.value)}
                   className="px-3 py-1 border border-gray-300 rounded text-sm font-medium"
                 >
-                  {['USD','EUR','GBP','AED','SAR'].map((c) => <option key={c}>{c}</option>)}
+                  {['USD', 'ETB'].map((c) => <option key={c} value={c}>{c === 'USD' ? 'USD — US Dollar' : 'ETB — Ethiopian Birr'}</option>)}
                 </select>
               </div>
               

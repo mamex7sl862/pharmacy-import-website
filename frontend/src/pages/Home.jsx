@@ -114,10 +114,9 @@ function HeroSlideshow({ slides }) {
 
         {/* Main Title */}
         <h1 
-          className="text-white text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1] max-w-4xl"
+          className="text-white font-headline text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1] max-w-4xl"
           style={{ 
-            textShadow: '0 0 30px rgba(0,0,0,0.9), 0 0 60px rgba(0,0,0,0.7), 2px 2px 4px rgba(0,0,0,0.8), -2px -2px 4px rgba(0,0,0,0.8)',
-            WebkitTextStroke: '1px rgba(0,0,0,0.3)'
+            textShadow: '0 4px 20px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6)',
           }}
         >
           {slide.headline || slide.title}
@@ -125,10 +124,9 @@ function HeroSlideshow({ slides }) {
 
         {/* Subtitle */}
         <p 
-          className="text-white text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed font-semibold"
+          className="text-white text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed font-medium"
           style={{ 
-            textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 2px 2px 3px rgba(0,0,0,0.8), -2px -2px 3px rgba(0,0,0,0.8)',
-            WebkitTextStroke: '0.5px rgba(0,0,0,0.3)'
+            textShadow: '0 2px 12px rgba(0,0,0,0.7)',
           }}
         >
           {slide.sub || slide.subtitle}
