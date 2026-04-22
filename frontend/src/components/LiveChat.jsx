@@ -131,19 +131,24 @@ export default function LiveChat() {
   return (
     <div
       ref={containerRef}
-      className={`fixed z-40 flex flex-col items-end ${
+      className={`fixed z-50 flex flex-col items-end ${
         location.pathname.startsWith('/portal/rfq')
           ? 'bottom-20 sm:bottom-24 right-4 sm:right-6'
           : 'bottom-4 sm:bottom-6 right-4 sm:right-6'
       }`}
     >
       {/* ── Chat Window ──────────────────────────────────────────────────────── */}
-      <div className={`w-[340px] sm:w-[380px] bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col border border-gray-200 mb-3 transition-all duration-300 origin-bottom-right ${
-        isOpen
-          ? 'opacity-100 scale-100 pointer-events-auto translate-y-0'
-          : 'opacity-0 scale-95 pointer-events-none translate-y-4'
-      }`}
-        style={{ height: isOpen ? '480px' : '0px', transition: 'height 0.3s ease, opacity 0.3s ease, transform 0.3s ease' }}
+      <div
+        className={`w-[340px] sm:w-[380px] bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col border border-gray-200 mb-3 transition-all duration-300 origin-bottom-right ${
+          isOpen
+            ? 'opacity-100 scale-100 pointer-events-auto translate-y-0'
+            : 'opacity-0 scale-95 pointer-events-none translate-y-4'
+        }`}
+        style={{
+          height: isOpen ? 'min(480px, calc(100vh - 80px))' : '0px',
+          maxHeight: 'calc(100vh - 80px)',
+          transition: 'height 0.3s ease, opacity 0.3s ease, transform 0.3s ease',
+        }}
       >
         {/* ── Header ─────────────────────────────────────────────────────────── */}
         <div className="bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
