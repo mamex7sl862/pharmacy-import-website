@@ -10,9 +10,10 @@ const STATUS_BADGE = {
   UNDER_REVIEW:   'bg-yellow-50 text-yellow-700',
   QUOTATION_SENT: 'bg-green-50 text-green-700',
   CLOSED:         'bg-emerald-50 text-emerald-700',
+  DECLINED:       'bg-red-50 text-red-700',
 }
-const STATUS_DOT   = { NEW: 'bg-blue-500', UNDER_REVIEW: 'bg-yellow-500', QUOTATION_SENT: 'bg-green-500', CLOSED: 'bg-emerald-500' }
-const STATUS_LABEL = { NEW: 'Pending', UNDER_REVIEW: 'Under Review', QUOTATION_SENT: 'Quoted', CLOSED: 'Closed' }
+const STATUS_DOT   = { NEW: 'bg-blue-500', UNDER_REVIEW: 'bg-yellow-500', QUOTATION_SENT: 'bg-green-500', CLOSED: 'bg-emerald-500', DECLINED: 'bg-red-500' }
+const STATUS_LABEL = { NEW: 'Pending', UNDER_REVIEW: 'Under Review', QUOTATION_SENT: 'Quoted', CLOSED: 'Closed', DECLINED: 'Declined' }
 
 export default function CustomerDashboard() {
   const { user } = useAuthStore()
@@ -21,6 +22,7 @@ export default function CustomerDashboard() {
   const queryClient = useQueryClient()
   const newRfq = location.state?.newRfq
   const [acceptingRfq, setAcceptingRfq] = useState(null) // holds the rfq being accepted
+  const [decliningRfq, setDecliningRfq] = useState(null) // holds the rfq being declined
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-rfqs'],
@@ -32,6 +34,14 @@ export default function CustomerDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customer-rfqs'] })
       setAcceptingRfq(null)
+    },
+  })
+
+  const declineMutation = useMutation({
+    mutationFn: (rfqId) => api.post(`/customer/rfqs/${rfqId}/decline`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-rfqs'] })
+      setDecliningRfq(null)
     },
   })
 
@@ -158,6 +168,15 @@ export default function CustomerDashboard() {
                           <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
                           PDF
                         </button>
+                        {/* Decline Quotation */}
+                        <button
+                          onClick={() => setDecliningRfq(rfq)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-colors shadow-sm"
+                          title="Decline this quotation"
+                        >
+                          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
+                          Decline
+                        </button>
                         {/* Accept Quotation */}
                         <button
                           onClick={() => setAcceptingRfq(rfq)}
@@ -185,7 +204,7 @@ export default function CustomerDashboard() {
                   <div className="mt-3 pt-3 border-t border-green-200 flex items-center gap-2">
                     <span className="material-symbols-outlined text-green-600 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
                     <p className="text-xs text-green-700 font-medium">
-                      Your quotation is ready. Download the PDF to review pricing, then click <strong>Accept</strong> to confirm your order.
+                      Your quotation is ready. Download the PDF to review pricing, then click <strong>Accept</strong> to confirm or <strong>Decline</strong> to reject.
                     </p>
                   </div>
                 )}
@@ -202,6 +221,54 @@ export default function CustomerDashboard() {
           </div>
         )}
       </section>
+
+      {/* ── Decline Confirmation Modal ──────────────────────────────────────── */}
+      {decliningRfq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-red-600 text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
+              </div>
+              <div>
+                <h2 className="font-headline font-extrabold text-xl text-gray-900">Decline Quotation?</h2>
+                <p className="text-sm text-gray-500 font-mono">{decliningRfq.rfqNumber}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+              Are you sure you want to decline this quotation? The admin will be notified and this RFQ will be closed. You can always submit a new RFQ if needed.
+            </p>
+
+            {declineMutation.isError && (
+              <p className="text-sm text-red-600 mb-4 bg-red-50 px-4 py-2 rounded-lg border border-red-200">
+                Something went wrong. Please try again.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setDecliningRfq(null); declineMutation.reset() }}
+                disabled={declineMutation.isPending}
+                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => declineMutation.mutate(decliningRfq.id)}
+                disabled={declineMutation.isPending}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {declineMutation.isPending ? (
+                  <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span> Processing...</>
+                ) : (
+                  <><span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span> Confirm Decline</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Accept Confirmation Modal ───────────────────────────────────────── */}
       {acceptingRfq && (
