@@ -9,6 +9,7 @@ export default function LiveChat() {
   const location = useLocation()
   const { user } = useAuthStore()
 
+  // ── 1. All hooks must be at the very top ──────────────────────────────────
   const [isOpen, setIsOpen]         = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [chatId, setChatId]         = useState(null)
@@ -18,14 +19,23 @@ export default function LiveChat() {
   const [isOnline, setIsOnline]     = useState(true)
   const [initError, setInitError]   = useState(false)
 
-  const msgsEndRef  = useRef(null)
-  const pollRef     = useRef(null)
-  const chatIdRef   = useRef(null)
-  const containerRef = useRef(null)  // for click-outside detection
+  // Dragging state
+  const [isDragging, setIsDragging] = useState(false)
+  const [position, setPosition]     = useState({ x: 0, y: 0 })
+  const [opensUpward, setOpensUpward] = useState(true)
+  const [alignsRight, setAlignsRight] = useState(true)
 
+  const msgsEndRef   = useRef(null)
+  const pollRef      = useRef(null)
+  const chatIdRef    = useRef(null)
+  const containerRef = useRef(null)
+  const dragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 })
+  const hasMovedRef  = useRef(false)
+
+  // Sync ref for polling
   useEffect(() => { chatIdRef.current = chatId }, [chatId])
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom
   useEffect(() => {
     if (isOpen && msgsEndRef.current) {
       msgsEndRef.current.scrollIntoView({ behavior: 'smooth' })
@@ -80,8 +90,10 @@ export default function LiveChat() {
     }
   }, [chatId, user, fetchMessages])
 
+  // Chat Polling Effect
   useEffect(() => {
-    if (!isOpen) {
+    const isInsideAdmin = location.pathname.startsWith('/admin')
+    if (!isOpen || isInsideAdmin) {
       clearInterval(pollRef.current)
       return
     }
@@ -90,17 +102,9 @@ export default function LiveChat() {
       fetchMessages(chatIdRef.current)
     }, POLL_INTERVAL)
     return () => clearInterval(pollRef.current)
-  }, [isOpen, initSession, fetchMessages])
+  }, [isOpen, initSession, fetchMessages, location.pathname])
 
-  if (location.pathname.startsWith('/admin')) return null
-
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [opensUpward, setOpensUpward] = useState(true)
-  const [alignsRight, setAlignsRight] = useState(true)
-  const dragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 })
-  const hasMovedRef = useRef(false)
-
+  // Dragging Gesture Helpers
   const handleStart = (clientX, clientY) => {
     setIsDragging(true)
     hasMovedRef.current = false
@@ -124,35 +128,28 @@ export default function LiveChat() {
     }
 
     setPosition({ x: newX, y: newY })
-
-    // Vertical direction
     setOpensUpward(clientY > window.innerHeight / 2)
-    // Horizontal alignment
     setAlignsRight(clientX > window.innerWidth / 2)
   }
 
   const handleEnd = () => {
     setIsDragging(false)
-    
-    // Clamp position so icon doesn't go off screen
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect()
       const padding = 16
       let clampX = 0
       let clampY = 0
-
       if (rect.left < padding) clampX = padding - rect.left
       if (rect.right > window.innerWidth - padding) clampX = (window.innerWidth - padding) - rect.right
       if (rect.top < padding) clampY = padding - rect.top
       if (rect.bottom > window.innerHeight - padding) clampY = (window.innerHeight - padding) - rect.bottom
-      
       if (clampX !== 0 || clampY !== 0) {
         setPosition(prev => ({ x: prev.x + clampX, y: prev.y + clampY }))
       }
     }
   }
 
-  // Global listeners for dragging
+  // Dragging Event Listeners Effect
   useEffect(() => {
     if (!isDragging) return
     const onMouseMove = (e) => handleMove(e.clientX, e.clientY)
@@ -177,8 +174,11 @@ export default function LiveChat() {
     }
   }, [isDragging])
 
-  if (location.pathname.startsWith('/admin')) return null
+  // ── 2. Early return AFTER all hooks ───────────────────────────────────────
+  const isAdminPath = location.pathname.startsWith('/admin')
+  if (isAdminPath) return null
 
+  // ── 3. Sub-components and logic ───────────────────────────────────────────
   const handleSend = async (e) => {
     e.preventDefault()
     if (!inputValue.trim() || !chatId || sending) return

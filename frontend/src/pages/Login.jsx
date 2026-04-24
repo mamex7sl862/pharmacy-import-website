@@ -22,7 +22,11 @@ export default function Login() {
     mutationFn: (data) => api.post('/auth/login', data).then(r => r.data),
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken)
-      navigate(redirect || (data.user.role === 'admin' ? '/admin' : '/portal'), { replace: true })
+      // Slight delay to ensure Zustand and Router are in sync before navigating
+      // especially important for Admin routes which have heavy child components
+      setTimeout(() => {
+        navigate(redirect || (data.user.role === 'admin' ? '/admin' : '/portal'), { replace: true })
+      }, 10)
     },
   })
 
