@@ -94,6 +94,91 @@ export default function LiveChat() {
 
   if (location.pathname.startsWith('/admin')) return null
 
+  const [isDragging, setIsDragging] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [opensUpward, setOpensUpward] = useState(true)
+  const [alignsRight, setAlignsRight] = useState(true)
+  const dragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 })
+  const hasMovedRef = useRef(false)
+
+  const handleStart = (clientX, clientY) => {
+    setIsDragging(true)
+    hasMovedRef.current = false
+    dragStartRef.current = {
+      x: clientX,
+      y: clientY,
+      startX: position.x,
+      startY: position.y
+    }
+  }
+
+  const handleMove = (clientX, clientY) => {
+    if (!isDragging) return
+    const dx = clientX - dragStartRef.current.x
+    const dy = clientY - dragStartRef.current.y
+    const newX = dragStartRef.current.startX + dx
+    const newY = dragStartRef.current.startY + dy
+    
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasMovedRef.current = true
+    }
+
+    setPosition({ x: newX, y: newY })
+
+    // Vertical direction
+    setOpensUpward(clientY > window.innerHeight / 2)
+    // Horizontal alignment
+    setAlignsRight(clientX > window.innerWidth / 2)
+  }
+
+  const handleEnd = () => {
+    setIsDragging(false)
+    
+    // Clamp position so icon doesn't go off screen
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const padding = 16
+      let clampX = 0
+      let clampY = 0
+
+      if (rect.left < padding) clampX = padding - rect.left
+      if (rect.right > window.innerWidth - padding) clampX = (window.innerWidth - padding) - rect.right
+      if (rect.top < padding) clampY = padding - rect.top
+      if (rect.bottom > window.innerHeight - padding) clampY = (window.innerHeight - padding) - rect.bottom
+      
+      if (clampX !== 0 || clampY !== 0) {
+        setPosition(prev => ({ x: prev.x + clampX, y: prev.y + clampY }))
+      }
+    }
+  }
+
+  // Global listeners for dragging
+  useEffect(() => {
+    if (!isDragging) return
+    const onMouseMove = (e) => handleMove(e.clientX, e.clientY)
+    const onMouseUp = () => handleEnd()
+    const onTouchMove = (e) => {
+      if (e.touches.length > 0) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY)
+      }
+    }
+    const onTouchEnd = () => handleEnd()
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onTouchEnd)
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [isDragging])
+
+  if (location.pathname.startsWith('/admin')) return null
+
   const handleSend = async (e) => {
     e.preventDefault()
     if (!inputValue.trim() || !chatId || sending) return
@@ -128,30 +213,49 @@ export default function LiveChat() {
     return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  const toggleChat = (e) => {
+    if (!hasMovedRef.current) {
+      setIsOpen(o => !o)
+    }
+  }
+
   return (
     <div
       ref={containerRef}
-      className={`fixed z-50 flex flex-col items-end ${
-        location.pathname.startsWith('/portal/rfq')
-          ? 'bottom-20 sm:bottom-24 right-4 sm:right-6'
-          : 'bottom-4 sm:bottom-6 right-4 sm:right-6'
+      className={`fixed z-50 flex transition-all duration-300 pointer-events-none ${
+        opensUpward ? 'flex-col' : 'flex-col-reverse'
+      } ${
+        alignsRight ? 'items-end' : 'items-start'
+      } ${
+        location.pathname.startsWith('/portal/rfq') || location.pathname.startsWith('/rfq') || location.pathname.startsWith('/portal/compare') || location.pathname.startsWith('/products')
+          ? 'bottom-24 sm:bottom-28 right-4 sm:right-8'
+          : 'bottom-6 sm:bottom-8 right-4 sm:right-8'
       }`}
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), bottom 0.3s, right 0.3s',
+        touchAction: 'none'
+      }}
     >
       {/* ── Chat Window ──────────────────────────────────────────────────────── */}
       <div
-        className={`w-[340px] sm:w-[380px] bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col border border-gray-200 mb-3 transition-all duration-300 origin-bottom-right ${
+        className={`w-[calc(100vw-32px)] sm:w-[380px] bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col border border-gray-200 transition-all duration-300 ${
+          opensUpward 
+            ? (alignsRight ? 'mb-3 origin-bottom-right' : 'mb-3 origin-bottom-left') 
+            : (alignsRight ? 'mt-3 origin-top-right' : 'mt-3 origin-top-left')
+        } ${
           isOpen
             ? 'opacity-100 scale-100 pointer-events-auto translate-y-0'
-            : 'opacity-0 scale-95 pointer-events-none translate-y-4'
+            : 'opacity-0 scale-95 pointer-events-none' + (opensUpward ? ' translate-y-4' : ' -translate-y-4')
         }`}
         style={{
-          height: isOpen ? 'min(480px, calc(100vh - 80px))' : '0px',
-          maxHeight: 'calc(100vh - 80px)',
+          height: isOpen ? 'min(480px, calc(100vh - 120px))' : '0px',
+          maxHeight: 'calc(100vh - 120px)',
           transition: 'height 0.3s ease, opacity 0.3s ease, transform 0.3s ease',
         }}
       >
         {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <div className="bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0 cursor-default">
           <div className="flex items-center gap-3">
             <div className="relative flex-shrink-0">
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-base">
@@ -189,6 +293,7 @@ export default function LiveChat() {
               <button
                 onClick={() => { setInitError(false); setChatId(null); initSession() }}
                 className="mt-1 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
+                style={{ pointerEvents: 'auto' }}
               >
                 Retry
               </button>
@@ -258,8 +363,10 @@ export default function LiveChat() {
 
       {/* ── Toggle Button ────────────────────────────────────────────────────── */}
       <button
-        onClick={() => setIsOpen(o => !o)}
-        className="w-14 h-14 bg-primary text-white rounded-full shadow-[0_8px_24px_rgba(0,63,135,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all outline-none relative"
+        onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
+        onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
+        onClick={toggleChat}
+        className={`w-14 h-14 bg-primary text-white rounded-full shadow-[0_8px_24px_rgba(0,63,135,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all outline-none relative cursor-move pointer-events-auto ${isDragging ? 'scale-110 shadow-2xl ring-4 ring-primary/20' : ''}`}
       >
         <span className={`material-symbols-outlined text-2xl transition-transform duration-300 ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
           {isOpen ? 'keyboard_arrow_down' : 'chat_bubble'}

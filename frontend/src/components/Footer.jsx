@@ -6,11 +6,11 @@ export default function Footer() {
 
   return (
     <footer className="bg-gray-900 text-gray-400">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
 
           {/* Brand */}
-          <div className="md:col-span-1">
+          <div className="col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 signature-gradient rounded-lg flex items-center justify-center">
                 <span className="material-symbols-outlined text-white text-base" style={{ fontVariationSettings: "'FILL' 1" }}>medication</span>
@@ -82,8 +82,8 @@ export default function Footer() {
 
         {/* Certifications strip */}
         <div className="border-t border-gray-800 pt-8 mb-6">
-          <div className="flex flex-wrap gap-4 items-center">
-            <span className="text-xs text-gray-600 uppercase tracking-widest font-semibold">Certified:</span>
+          <div className="flex flex-wrap gap-2 sm:gap-4 items-center">
+            <span className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest font-semibold">Certified:</span>
             {['WHO-GMP', 'FDA Registered', 'ISO 9001', 'GDP Compliant', 'IATA Certified'].map(cert => (
               <span key={cert} className="px-3 py-1 bg-gray-800 rounded-full text-xs text-gray-400 font-medium">{cert}</span>
             ))}

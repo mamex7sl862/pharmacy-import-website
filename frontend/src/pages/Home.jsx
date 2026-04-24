@@ -114,7 +114,7 @@ function HeroSlideshow({ slides }) {
 
         {/* Main Title */}
         <h1 
-          className="text-white font-headline text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1] max-w-4xl"
+          className="text-white font-headline text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1] max-w-4xl"
           style={{ 
             textShadow: '0 4px 20px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6)',
           }}
@@ -124,7 +124,7 @@ function HeroSlideshow({ slides }) {
 
         {/* Subtitle */}
         <p 
-          className="text-white text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed font-medium"
+          className="text-white text-base sm:text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed font-medium"
           style={{ 
             textShadow: '0 2px 12px rgba(0,0,0,0.7)',
           }}
@@ -469,9 +469,9 @@ export default function Home() {
       </section>
 
       {/* 5. Why Choose Us */}
-      <section className="bg-primary py-14">
+      <section className="bg-primary py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-white font-bold text-2xl mb-10">Why Healthcare Leaders Choose Us</h2>
+          <h2 className="text-center text-white font-bold text-xl sm:text-2xl mb-8 sm:mb-10">Why Healthcare Leaders Choose Us</h2>
           <div className="flex flex-wrap justify-center gap-6">
             {(WHY_US || DEFAULT_WHY).map(item => (
               <div key={item.title} className="flex flex-col items-center text-center w-40">

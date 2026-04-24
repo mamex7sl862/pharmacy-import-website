@@ -93,7 +93,7 @@ function Step1({ onNext }) {
   return (
     <form onSubmit={handleSubmit(onSubmit, onError)} className="h-full">
       <p className="text-xs text-on-surface-variant mb-4">All fields marked <span className="text-error">*</span> are required.</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
         {fields.map((f) => (
           <div key={f.name}>
             <label className="block text-[10px] font-bold text-outline uppercase tracking-widest mb-1">{f.label} <span className="text-error">*</span></label>
@@ -161,7 +161,7 @@ function Step2({ onNext, onBack }) {
   return (
     <div className="h-full flex flex-col">
       {showErr && <p className="text-xs text-error mb-3 flex items-center gap-1"><span className="material-symbols-outlined text-sm">error</span>Add at least one product.</p>}
-      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
         {/* Catalog */}
         <div className="flex flex-col min-h-0">
           <div className="relative mb-3">
@@ -320,7 +320,7 @@ function Step3({ onNext, onBack }) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="grid grid-cols-2 gap-4 flex-1">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
         {/* Left column */}
         <div className="space-y-4">
           {/* Delivery date */}
@@ -420,12 +420,12 @@ function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
   const { customerInfo, selectedProducts, additionalInfo } = useRFQStore()
   return (
     <div className="h-full flex flex-col">
-      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
         {/* Left: customer + logistics */}
-        <div className="space-y-4 overflow-y-auto pr-2">
+        <div className="space-y-4 overflow-y-auto lg:pr-2">
           <div className="bg-surface-container-low rounded-xl p-4">
             <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-3">Customer</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
               {[
                 ['Name',     customerInfo.fullName],
                 ['Company',  customerInfo.companyName],
@@ -444,7 +444,7 @@ function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
           {(additionalInfo.requestedDeliveryDate || additionalInfo.shippingMethod) && (
             <div className="bg-surface-container-low rounded-xl p-4">
               <p className="text-[10px] font-bold text-outline uppercase tracking-widest mb-3">Logistics</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {additionalInfo.requestedDeliveryDate && (
                   <div><p className="text-[9px] font-bold text-outline uppercase">Delivery</p><p className="text-sm font-semibold text-on-surface">{additionalInfo.requestedDeliveryDate}</p></div>
                 )}
@@ -657,7 +657,7 @@ export default function RFQ() {
           </div>
 
           {/* Step card */}
-          <div className="bg-surface-container-lowest rounded-2xl shadow-lg p-8">
+          <div className="bg-surface-container-lowest rounded-2xl shadow-lg p-4 sm:p-8">
             {currentStep === 1 && (
               <Step1 onNext={async (data) => {
                 try { const { data: u } = await api.put('/customer/profile', data); updateUser(u) } catch (_) {}

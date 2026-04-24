@@ -54,7 +54,7 @@ export default function TrackRFQ() {
 
         {/* Search form */}
         <form onSubmit={handleSearch} className="mb-10">
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
               <input
@@ -68,13 +68,13 @@ export default function TrackRFQ() {
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="btn-primary px-8 flex items-center gap-2 disabled:opacity-50"
+              className="btn-primary px-8 py-4 sm:py-0 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isLoading
-                ? <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                : <span className="material-symbols-outlined">arrow_forward</span>
+                ? <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
+                : <span className="material-symbols-outlined text-xl">arrow_forward</span>
               }
-              Track
+              <span className="font-bold uppercase tracking-widest text-xs">Track</span>
             </button>
           </div>
         </form>
