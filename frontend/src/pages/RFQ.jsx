@@ -172,20 +172,23 @@ function Step2({ onNext, onBack }) {
           <div className="flex-1 overflow-y-auto border border-surface-container rounded-lg">
             {catalog.map(p => {
               const added = selectedProducts.some(s => s.productId === p.id)
-              const stock = p.stockQuantity || p.stock_quantity || 0
-              const outOfStock = stock === 0
+              // Use availableQuantity (stock minus reserve) if provided, else fall back
+              const available = p.availableQuantity ?? Math.max(0, (p.stockQuantity || p.stock_quantity || 0) - 50)
+              const outOfStock = available === 0
               return (
                 <div key={p.id} className={`flex items-center justify-between px-4 py-3 border-b border-surface-container last:border-0 hover:bg-surface-container-low transition-colors ${outOfStock ? 'opacity-50' : ''}`}>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-on-surface truncate">{p.name}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs text-outline truncate">{p.brand}</p>
-                      {outOfStock && (
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600">Out of stock</span>
+                      {outOfStock ? (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600">Unavailable</span>
+                      ) : (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700">{available} available</span>
                       )}
                     </div>
                   </div>
-                  <button onClick={() => !added && !outOfStock && addProduct({ ...p, stockQuantity: stock })} disabled={added || outOfStock}
+                  <button onClick={() => !added && !outOfStock && addProduct({ ...p, stockQuantity: available })} disabled={added || outOfStock}
                     className={`ml-3 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       outOfStock ? 'bg-surface-container text-outline cursor-not-allowed' :
                       added ? 'bg-green-100 text-green-600' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'
@@ -220,7 +223,7 @@ function Step2({ onNext, onBack }) {
                       onChange={e => {
                         const val = parseInt(e.target.value) || 1
                         
-                        // Check stock validation
+                        // Check stock validation against available (reserve-adjusted) quantity
                         const hasStock = item.stockQuantity && item.stockQuantity > 0
                         const exceedsStock = hasStock && val > item.stockQuantity
                         
@@ -240,7 +243,7 @@ function Step2({ onNext, onBack }) {
                     <div className="mt-2">
                       <p className="text-[10px] text-error flex items-center gap-1">
                         <span className="material-symbols-outlined text-xs">error</span>
-                        Requested quantity not available. Please adjust your order.
+                        Exceeds available quantity ({item.stockQuantity} units available). Please reduce your order.
                       </p>
                     </div>
                   )}

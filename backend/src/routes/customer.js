@@ -5,6 +5,9 @@ const { generateRFQPDF } = require('../services/pdf')
 
 router.use(verifyToken)
 
+// Stock reserve — minimum stock that must remain after any order
+const STOCK_RESERVE = 50
+
 // GET /api/customer/profile
 router.get('/profile', async (req, res, next) => {
   try {
@@ -136,14 +139,29 @@ router.post('/rfqs/:id/accept', async (req, res, next) => {
     // Run everything in a single transaction
     await client.query('BEGIN')
 
-    // 1. Deduct stock for each linked product (floor at 0)
+    // 1. Deduct stock for each linked product — never go below STOCK_RESERVE
     for (const item of items) {
+      // Check available stock (above reserve) before deducting
+      const { rows: stockRows } = await client.query(
+        'SELECT stock_quantity FROM products WHERE id = $1',
+        [item.product_id]
+      )
+      if (stockRows.length) {
+        const available = Math.max(0, stockRows[0].stock_quantity - STOCK_RESERVE)
+        if (item.quantity > available) {
+          await client.query('ROLLBACK')
+          return res.status(400).json({
+            error: 'INSUFFICIENT_STOCK',
+            message: `Insufficient available stock for one or more items. Only ${available} units available (${STOCK_RESERVE} units reserved).`,
+          })
+        }
+      }
       await client.query(
         `UPDATE products
-         SET stock_quantity = GREATEST(0, stock_quantity - $1),
+         SET stock_quantity = GREATEST($2, stock_quantity - $1),
              updated_at     = NOW()
-         WHERE id = $2`,
-        [item.quantity, item.product_id]
+         WHERE id = $3`,
+        [item.quantity, STOCK_RESERVE, item.product_id]
       )
     }
 
