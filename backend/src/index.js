@@ -105,6 +105,15 @@ app.listen(PORT, async () => {
   // Test DB connection on startup
   try {
     const pool = require('./db/pool')
+    
+    // Auto-migrate RFQ legitimacy columns
+    console.log('⏳ Running auto-migrations...')
+    await pool.query(`
+      ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS legal_document_url VARCHAR(255);
+      ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS is_legitimate BOOLEAN DEFAULT NULL;
+    `)
+    console.log('✅ Auto-migrations completed')
+
     const result = await pool.query('SELECT COUNT(*) FROM products')
     console.log(`✅ Database connected — ${result.rows[0].count} products in catalog`)
   } catch (err) {
