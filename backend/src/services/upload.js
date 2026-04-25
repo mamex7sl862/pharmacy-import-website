@@ -17,13 +17,18 @@ if (useCloudinary) {
 
   const storage = new CloudinaryStorage({
     cloudinary,
-    params: async (req, file) => ({
-      folder: 'pharmalink/rfq-attachments',
-      resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'image',
-      access_mode: 'public',
-      use_filename: true,
-      unique_filename: true,
-    }),
+    params: async (req, file) => {
+      const isPDF = file.mimetype === 'application/pdf'
+      return {
+        folder: 'pharmalink/rfq-attachments',
+        resource_type: isPDF ? 'raw' : 'image',
+        type: 'upload',
+        access_mode: 'public',
+        use_filename: false,
+        unique_filename: true,
+        format: isPDF ? 'pdf' : undefined,
+      }
+    },
   })
 
   upload = multer({
@@ -55,11 +60,8 @@ if (useCloudinary) {
  */
 function getFileUrl(file) {
   if (useCloudinary) {
-    // For raw files (PDFs), Cloudinary path doesn't include extension — add it back
-    const url = file.path
-    const ext = file.originalname ? file.originalname.split('.').pop() : ''
-    if (ext && !url.endsWith(`.${ext}`)) return `${url}.${ext}`
-    return url
+    // file.path is the secure_url from Cloudinary — use it as-is
+    return file.path
   }
   return `/uploads/${file.filename}`
 }
