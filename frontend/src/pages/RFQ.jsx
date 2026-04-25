@@ -353,11 +353,14 @@ function Step3({ onNext, onBack }) {
                 onChange={e => { setAdditionalInfo({ shippingMethod: e.target.value }); setErrors(p => ({ ...p, ship: '' })) }}
                 className={`w-full bg-surface-container-high rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 appearance-none transition-all ${errors.ship ? 'ring-2 ring-error/50' : ''}`}>
                 <option value="">Select...</option>
-                <option value="city">City Delivery (Same Day)</option>
-                <option value="standard">Standard (3–5 days)</option>
-                <option value="air">Express Air</option>
-                <option value="sea">Sea Freight</option>
-                <option value="land">Cold Chain</option>
+                <option value="addis_same_day">Addis Ababa — Same Day</option>
+                <option value="addis_next_day">Addis Ababa — Next Day</option>
+                <option value="domestic_road">Domestic Road (2–4 days)</option>
+                <option value="domestic_express">Domestic Express Bus (1–2 days)</option>
+                <option value="air_import">International Air Freight</option>
+                <option value="sea_import">International Sea Freight</option>
+                <option value="cold_chain">Cold Chain (Temperature-Controlled)</option>
+                <option value="pickup">Self Pickup — Addis Ababa Warehouse</option>
               </select>
               <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-sm">expand_more</span>
             </div>
