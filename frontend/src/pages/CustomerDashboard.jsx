@@ -159,6 +159,14 @@ export default function CustomerDashboard() {
 
                     {rfq.status === 'QUOTATION_SENT' ? (
                       <>
+                        {/* View Details */}
+                        <Link
+                          to={`/portal/rfqs/${rfq.id}`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-sm">visibility</span>
+                          View
+                        </Link>
                         {/* Download PDF */}
                         <button
                           onClick={() => downloadPDF(rfq)}
