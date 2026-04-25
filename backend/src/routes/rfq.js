@@ -1,38 +1,18 @@
 const router = require('express').Router()
 const Joi = require('joi')
-const multer = require('multer')
 const path = require('path')
-const fs = require('fs')
 const pool = require('../db/pool')
 const { generateRFQNumber } = require('../services/rfqNumber')
 const { sendCustomerConfirmation, sendAdminNotification } = require('../services/email')
 const { generateRFQPDF } = require('../services/pdf')
-
-// ── File upload config ────────────────────────────────────────────────────────
-const UPLOAD_DIR = path.join(__dirname, '../../uploads')
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`
-    cb(null, `${unique}${path.extname(file.originalname)}`)
-  },
-})
+const { upload, getFileUrl } = require('../services/upload')
 
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    if (ALLOWED_MIME.includes(file.mimetype)) cb(null, true)
-    else cb(new Error(`Invalid file type: ${file.mimetype}`))
-  },
-}).fields([
+const uploadMiddleware = upload.fields([
   { name: 'attachments', maxCount: 5 },
-  { name: 'legalDocument', maxCount: 1 }
+  { name: 'legalDocument', maxCount: 1 },
 ])
 
 // ── Validation schema ─────────────────────────────────────────────────────────
@@ -71,7 +51,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const isUUID = (s) => UUID_RE.test(s)
 
 // ── POST /api/rfq ─────────────────────────────────────────────────────────────
-router.post('/', upload, async (req, res, next) => {
+router.post('/', uploadMiddleware, async (req, res, next) => {
   const client = await pool.connect()
   try {
     // Body may come as JSON string when using multipart/form-data
@@ -150,7 +130,7 @@ router.post('/', upload, async (req, res, next) => {
       // General attachments
       if (req.files.attachments) {
         for (const file of req.files.attachments) {
-          const fileUrl = `/uploads/${file.filename}`
+          const fileUrl = getFileUrl(file)
           await client.query(
             `INSERT INTO rfq_attachments (rfq_id, file_name, file_url, file_size, mime_type)
              VALUES ($1,$2,$3,$4,$5)`,
@@ -161,7 +141,7 @@ router.post('/', upload, async (req, res, next) => {
       // Legal document
       if (req.files.legalDocument) {
         const file = req.files.legalDocument[0]
-        const fileUrl = `/uploads/${file.filename}`
+        const fileUrl = getFileUrl(file)
         await client.query(
           `UPDATE rfqs SET legal_document_url = $1 WHERE id = $2`,
           [fileUrl, rfq.id]
