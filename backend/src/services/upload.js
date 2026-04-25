@@ -55,7 +55,11 @@ if (useCloudinary) {
  */
 function getFileUrl(file) {
   if (useCloudinary) {
-    return file.path // Cloudinary sets file.path to the secure URL
+    // For raw files (PDFs), Cloudinary path doesn't include extension — add it back
+    const url = file.path
+    const ext = file.originalname ? file.originalname.split('.').pop() : ''
+    if (ext && !url.endsWith(`.${ext}`)) return `${url}.${ext}`
+    return url
   }
   return `/uploads/${file.filename}`
 }
