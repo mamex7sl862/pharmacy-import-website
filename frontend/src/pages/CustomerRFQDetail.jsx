@@ -279,6 +279,11 @@ export default function CustomerRFQDetail() {
                   <p className="text-sm text-emerald-700">
                     You have accepted the quotation for <strong>{rfq.rfq_number}</strong>. Our team will be in touch shortly to arrange delivery and payment.
                   </p>
+                  {rfq.verification_feedback && (
+                    <div className="mt-4 p-3 bg-white/50 rounded-xl border border-emerald-200 text-sm text-emerald-800 italic font-medium">
+                      Admin Note: "{rfq.verification_feedback}"
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -294,6 +299,11 @@ export default function CustomerRFQDetail() {
                   <p className="text-sm text-red-700 mb-3">
                     You have declined the quotation for <strong>{rfq.rfq_number}</strong>. If you'd like to request a new quote, please submit a new RFQ.
                   </p>
+                  {rfq.verification_feedback && (
+                    <div className="mt-2 mb-4 p-3 bg-white/50 rounded-xl border border-red-200 text-sm text-red-800 italic font-medium">
+                      Rejection Reason: "{rfq.verification_feedback}"
+                    </div>
+                  )}
                   <Link to="/portal/rfq" className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">
                     <span className="material-symbols-outlined text-base">add</span>
                     Submit New RFQ
@@ -310,7 +320,13 @@ export default function CustomerRFQDetail() {
                 <span className="material-symbols-outlined text-outline text-xl">info</span>
                 <div>
                   <h3 className="font-headline font-bold text-sm text-on-surface mb-1">Quotation Pending</h3>
-                  <p className="text-xs text-on-surface-variant">Your formal quotation with pricing will be available here once our team sends it. You'll also receive it by email.</p>
+                  <p className="text-xs text-on-surface-variant mb-3">Your formal quotation with pricing will be available here once our team sends it. You'll also receive it by email.</p>
+                  
+                  {rfq.verification_feedback && (
+                    <div className="mt-2 p-3 bg-white rounded-xl border border-outline-variant/20 text-xs text-on-surface-variant italic font-medium">
+                      Note: "{rfq.verification_feedback}"
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

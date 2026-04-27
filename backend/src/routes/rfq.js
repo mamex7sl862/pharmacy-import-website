@@ -261,7 +261,8 @@ router.get('/:rfqNumber/pdf', async (req, res, next) => {
 router.get('/:rfqNumber', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT rfq_number AS "rfqNumber", status, submitted_at AS "submittedAt"
+      `SELECT rfq_number AS "rfqNumber", status, submitted_at AS "submittedAt", 
+              verification_feedback AS "verificationFeedback"
        FROM rfqs WHERE rfq_number = $1`,
       [req.params.rfqNumber]
     )

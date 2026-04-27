@@ -111,6 +111,7 @@ app.listen(PORT, async () => {
     await pool.query(`
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS legal_document_url VARCHAR(255);
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS is_legitimate BOOLEAN DEFAULT NULL;
+      ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS verification_feedback TEXT;
     `)
     console.log('✅ Auto-migrations completed')
 

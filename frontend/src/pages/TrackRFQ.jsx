@@ -9,9 +9,10 @@ const STATUS_STEPS = [
   { key: 'UNDER_REVIEW',   label: 'Under Review',    icon: 'manage_search',   desc: 'Our procurement specialists are reviewing your request.' },
   { key: 'QUOTATION_SENT', label: 'Quotation Sent',  icon: 'mark_email_read', desc: 'A formal quotation has been sent to your email.' },
   { key: 'CLOSED',         label: 'Closed',          icon: 'task_alt',        desc: 'This RFQ has been closed.' },
+  { key: 'DECLINED',       label: 'Declined',        icon: 'cancel',          desc: 'This RFQ has been declined.' },
 ]
 
-const STATUS_ORDER = { NEW: 0, UNDER_REVIEW: 1, QUOTATION_SENT: 2, CLOSED: 3 }
+const STATUS_ORDER = { NEW: 0, UNDER_REVIEW: 1, QUOTATION_SENT: 2, CLOSED: 3, DECLINED: 3 }
 
 export default function TrackRFQ() {
   const [input, setInput] = useState('')
@@ -108,14 +109,32 @@ export default function TrackRFQ() {
                   data.status === 'NEW'            ? 'bg-blue-50 text-blue-700' :
                   data.status === 'UNDER_REVIEW'   ? 'bg-yellow-50 text-yellow-700' :
                   data.status === 'QUOTATION_SENT' ? 'bg-green-50 text-green-700' :
+                  data.status === 'DECLINED'       ? 'bg-red-50 text-red-700' :
                   'bg-slate-100 text-slate-500'
                 }`}>
                   {data.status?.replace('_', ' ')}
                 </span>
               </div>
-              <p className="text-sm text-on-surface-variant">
+              <p className="text-sm text-on-surface-variant mb-4">
                 Submitted: {new Date(data.submittedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
+
+              {/* Admin Feedback / Rejection Reason */}
+              {data.verificationFeedback && (
+                <div className={`p-5 rounded-2xl border flex items-start gap-4 animate-in slide-in-from-top-2 duration-300 ${
+                  data.status === 'DECLINED' ? 'bg-red-50 border-red-200 text-red-900' : 'bg-primary/5 border-primary/20 text-primary-900'
+                }`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    data.status === 'DECLINED' ? 'bg-red-100 text-red-600' : 'bg-primary/10 text-primary'
+                  }`}>
+                    <span className="material-symbols-outlined text-2xl">{data.status === 'DECLINED' ? 'report_problem' : 'info'}</span>
+                  </div>
+                  <div>
+                    <h4 className="font-headline font-extrabold text-sm uppercase tracking-wide mb-1">Update from our Verification Team</h4>
+                    <p className="text-sm font-medium italic leading-relaxed opacity-90">"{data.verificationFeedback}"</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Progress timeline */}

@@ -89,6 +89,7 @@ router.get('/rfqs/:id', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT r.*, r.legal_document_url AS "legalDocumentUrl", r.is_legitimate AS "isLegitimate",
+              r.verification_feedback AS "verificationFeedback",
               u.full_name AS "customerName", u.company_name AS "companyName",
               u.email, u.phone, u.country, u.city, u.business_type AS "businessType"
        FROM rfqs r LEFT JOIN users u ON u.id = r.customer_id
@@ -145,19 +146,20 @@ router.post('/rfqs/bulk-delete', async (req, res, next) => {
 // ── PATCH /api/admin/rfqs/:id/status ─────────────────────────────────────────
 router.patch('/rfqs/:id/status', async (req, res, next) => {
   try {
-    const { status } = req.body
+    const { status, verificationFeedback } = req.body
+    console.log('Status update request:', { id: req.params.id, status, verificationFeedback })
     if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'INVALID_STATUS' })
 
-    // Prevent changing status of a locked RFQ
+    // Prevent changing status of a locked RFQ (unless we are unlocking it/changing notes)
     const { rows: current } = await pool.query('SELECT status FROM rfqs WHERE id = $1', [req.params.id])
     if (!current.length) return res.status(404).json({ error: 'NOT_FOUND' })
-    if (['CLOSED', 'DECLINED'].includes(current[0].status)) {
-      return res.status(400).json({ error: 'RFQ_LOCKED', message: 'Cannot change status of a closed or declined RFQ.' })
-    }
-
+    
+    // Allow updating feedback even if locked, or changing status if it's not locked.
+    // However, if we're changing status TO closed/declined, we might want to save feedback.
+    
     await pool.query(
-      'UPDATE rfqs SET status = $1, updated_at = NOW() WHERE id = $2',
-      [status, req.params.id]
+      'UPDATE rfqs SET status = $1, verification_feedback = COALESCE($2, verification_feedback), updated_at = NOW() WHERE id = $3',
+      [status, verificationFeedback || null, req.params.id]
     )
     res.json({ success: true })
   } catch (err) { next(err) }
@@ -166,9 +168,19 @@ router.patch('/rfqs/:id/status', async (req, res, next) => {
 // ── PATCH /api/admin/rfqs/:id/legitimacy ─────────────────────────────────────
 router.patch('/rfqs/:id/legitimacy', async (req, res, next) => {
   try {
-    const { isLegitimate } = req.body
-    if (typeof isLegitimate !== 'boolean' && isLegitimate !== null) {
-      return res.status(400).json({ error: 'INVALID_VALUE' })
+    const { isLegitimate, verificationFeedback } = req.body
+    console.log('Legitimacy update request:', { 
+      id: req.params.id, 
+      isLegitimate, 
+      type: typeof isLegitimate,
+      verificationFeedback 
+    })
+    
+    if (isLegitimate !== true && isLegitimate !== false && isLegitimate !== null) {
+      return res.status(400).json({ 
+        error: 'INVALID_VALUE', 
+        message: `isLegitimate must be boolean or null, received ${typeof isLegitimate}` 
+      })
     }
 
     // If marked as not legitimate, automatically decline the RFQ
@@ -182,13 +194,13 @@ router.patch('/rfqs/:id/legitimacy', async (req, res, next) => {
     
     if (status) {
       await pool.query(
-        'UPDATE rfqs SET is_legitimate = $1, status = $2, updated_at = NOW() WHERE id = $3',
-        [isLegitimate, status, req.params.id]
+        'UPDATE rfqs SET is_legitimate = $1, status = $2, verification_feedback = $3, updated_at = NOW() WHERE id = $4',
+        [isLegitimate, status, verificationFeedback || null, req.params.id]
       )
     } else {
       await pool.query(
-        'UPDATE rfqs SET is_legitimate = $1, updated_at = NOW() WHERE id = $2',
-        [isLegitimate, req.params.id]
+        'UPDATE rfqs SET is_legitimate = $1, verification_feedback = $2, updated_at = NOW() WHERE id = $3',
+        [isLegitimate, verificationFeedback || null, req.params.id]
       )
     }
 

@@ -21,6 +21,22 @@ export default function RFQDetails() {
   const [itemPrices, setItemPrices] = useState({})
   const [quoteNotes, setQuoteNotes] = useState('')
   const [currency, setCurrency] = useState('USD')
+  
+  // Feedback Modal State
+  const [feedbackModal, setFeedbackModal] = useState({ 
+    open: false, 
+    type: '', // 'legitimacy' | 'status'
+    targetValue: null,
+    resolve: null 
+  })
+  const [feedbackText, setFeedbackText] = useState('')
+
+  const requestFeedback = (type, targetValue) => {
+    return new Promise((resolve) => {
+      setFeedbackText('')
+      setFeedbackModal({ open: true, type, targetValue, resolve })
+    })
+  }
 
   const { data: rfq, isLoading } = useQuery({
     queryKey: ['admin-rfq', id],
@@ -52,11 +68,11 @@ export default function RFQDetails() {
   const [priceError, setPriceError] = useState('')
 
   const updateStatus = useMutation({
-    mutationFn: (status) => api.patch(`/admin/rfqs/${id}/status`, { status }),
+    mutationFn: ({ status, verificationFeedback }) => api.patch(`/admin/rfqs/${id}/status`, { status, verificationFeedback }),
     onSuccess: () => qc.invalidateQueries(['admin-rfq', id]),
   })
 
-  const handleStatusChange = (status) => {
+  const handleStatusChange = async (status) => {
     if (status === 'QUOTATION_SENT') {
       const allPriced = rfq?.items?.every((item) => itemPrices[item.id]?.unitPrice)
       if (!allPriced) {
@@ -64,8 +80,15 @@ export default function RFQDetails() {
         return
       }
     }
+    
+    let verificationFeedback = null
+    if (status === 'CLOSED' || status === 'DECLINED') {
+      verificationFeedback = await requestFeedback('status', status)
+      if (verificationFeedback === null) return // cancelled
+    }
+
     setPriceError('')
-    updateStatus.mutate(status)
+    updateStatus.mutate({ status, verificationFeedback })
   }
 
   const saveNotes = useMutation({
@@ -87,9 +110,18 @@ export default function RFQDetails() {
   })
 
   const updateLegitimacy = useMutation({
-    mutationFn: (isLegitimate) => api.patch(`/admin/rfqs/${id}/legitimacy`, { isLegitimate }),
+    mutationFn: ({ isLegitimate, verificationFeedback }) => api.patch(`/admin/rfqs/${id}/legitimacy`, { isLegitimate, verificationFeedback }),
     onSuccess: () => qc.invalidateQueries(['admin-rfq', id]),
   })
+
+  const handleLegitimacyChange = async (isLegitimate) => {
+    let verificationFeedback = null
+    if (isLegitimate !== null) {
+      verificationFeedback = await requestFeedback('legitimacy', isLegitimate)
+      if (verificationFeedback === null) return // cancelled
+    }
+    updateLegitimacy.mutate({ isLegitimate, verificationFeedback })
+  }
 
   // PDF download with auth token
   const exportPDF = async () => {
@@ -316,6 +348,14 @@ export default function RFQDetails() {
                     <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">Legal Document Review</p>
                   </div>
                 </div>
+                
+                {rfq.verificationFeedback && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-600 italic">
+                    <p className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-1 not-italic">Previous Feedback:</p>
+                    "{rfq.verificationFeedback}"
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   {(rfq.legalDocumentUrl || rfq.legal_document_url) ? (
                     <a
@@ -335,17 +375,17 @@ export default function RFQDetails() {
                   )}
                   {(rfq.legalDocumentUrl || rfq.legal_document_url) && rfq.isLegitimate === null && !isLocked && (
                     <>
-                      <button onClick={() => updateLegitimacy.mutate(false)} className="p-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-all" title="Mark Incomplete / Fraud">
+                      <button onClick={() => handleLegitimacyChange(false)} className="p-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-all" title="Mark Incomplete / Fraud">
                         <span className="material-symbols-outlined text-sm">close</span>
                       </button>
-                      <button onClick={() => updateLegitimacy.mutate(true)} className="p-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all" title="Mark Legitimate">
+                      <button onClick={() => handleLegitimacyChange(true)} className="p-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all" title="Mark Legitimate">
                         <span className="material-symbols-outlined text-sm">check</span>
                       </button>
                     </>
                   )}
                   {rfq.isLegitimate !== null && rfq.status !== 'CLOSED' && (
                     <button
-                      onClick={() => updateLegitimacy.mutate(null)}
+                      onClick={() => handleLegitimacyChange(null)}
                       className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-400 hover:text-primary hover:border-primary/30 transition-all flex items-center gap-1.5 shadow-sm group"
                       title="Change your verification decision"
                     >
@@ -663,6 +703,59 @@ export default function RFQDetails() {
           </div>
         </div>
       </div>
+
+      {feedbackModal.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in-up">
+            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">
+              {feedbackModal.type === 'legitimacy' 
+                ? (feedbackModal.targetValue ? 'Approve License' : 'Reject Business License')
+                : (feedbackModal.targetValue === 'CLOSED' ? 'Close RFQ' : 'Decline RFQ')}
+            </h3>
+            <p className="text-sm text-on-surface-variant mb-6">
+              Please provide a reason or feedback for this decision. This will be visible to the customer. 
+              {(feedbackModal.targetValue === false || feedbackModal.targetValue === 'DECLINED') && <span className="text-red-500 font-bold ml-1">(Required)</span>}
+            </p>
+            
+            <textarea
+              autoFocus
+              rows={4}
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder={
+                feedbackModal.targetValue === false || feedbackModal.targetValue === 'DECLINED'
+                  ? "Describe the issue or fraud concern (REQUIRED to proceed)..." 
+                  : "Add an optional note for the customer..."
+              }
+              className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none mb-6"
+            />
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  setFeedbackModal({ ...feedbackModal, open: false })
+                  feedbackModal.resolve(null)
+                }}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setFeedbackModal({ ...feedbackModal, open: false })
+                  feedbackModal.resolve(feedbackText)
+                }}
+                disabled={(feedbackModal.targetValue === false || feedbackModal.targetValue === 'DECLINED') && !feedbackText.trim()}
+                className={`flex-1 py-3 rounded-xl text-white font-bold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed ${
+                  feedbackModal.targetValue === false || feedbackModal.targetValue === 'DECLINED' ? 'bg-red-500' : 'bg-primary'
+                }`}
+              >
+                Confirm Decision
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   )
 }
