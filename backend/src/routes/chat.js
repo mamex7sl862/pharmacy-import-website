@@ -5,17 +5,7 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 
-// ── File upload config for chat ──────────────────────────────────────────────
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/chat')
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`
-    cb(null, `${unique}${path.extname(file.originalname)}`)
-  },
-})
+const { storage } = require('../config/cloudinary')
 
 const upload = multer({
   storage,
@@ -156,7 +146,7 @@ router.post('/:chatId/files', upload.single('file'), async (req, res, next) => {
     
     const { senderName, senderId, isAdmin = 'false' } = req.body
     const is_admin = isAdmin === 'true'
-    const fileUrl = `/uploads/chat/${req.file.filename}`
+    const fileUrl = req.file.path // Cloudinary full URL
 
     const { rows } = await pool.query(
       `INSERT INTO chat_messages (
