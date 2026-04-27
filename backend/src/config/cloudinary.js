@@ -18,6 +18,8 @@ const storage = new CloudinaryStorage({
       folder = 'pharmalink/rfq/attachments';
     } else if (file.fieldname === 'legalDocument') {
       folder = 'pharmalink/rfq/legal';
+    } else if (file.fieldname === 'image') {
+      folder = 'pharmalink/products';
     } else if (req.baseUrl.includes('chat')) {
       folder = 'pharmalink/chat';
     }

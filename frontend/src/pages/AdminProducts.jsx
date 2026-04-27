@@ -9,7 +9,25 @@ const EMPTY = { name: '', genericName: '', brand: '', category: 'prescription', 
 
 function ProductModal({ product, onClose, onSave, isSaving }) {
   const [form, setForm] = useState(product || EMPTY)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+
+  const handleImageUpload = async (file) => {
+    if (!file) return
+    setUploading(true)
+    setUploadError('')
+    try {
+      const fd = new FormData()
+      fd.append('image', file)
+      const res = await api.post('/admin/upload-image', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setForm((f) => ({ ...f, imageUrl: res.data.url }))
+    } catch (e) {
+      setUploadError(e.response?.data?.message || 'Upload failed. Try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -58,12 +76,57 @@ function ProductModal({ product, onClose, onSave, isSaving }) {
               <label className="text-xs font-bold text-outline uppercase tracking-widest">Country of Origin</label>
               <input value={form.countryOfOrigin} onChange={set('countryOfOrigin')} placeholder="e.g. Germany, India, USA" className="input-field" />
             </div>
-            <div className="col-span-2 space-y-1.5">
-              <label className="text-xs font-bold text-outline uppercase tracking-widest">Image URL</label>
-              <input value={form.imageUrl} onChange={set('imageUrl')} placeholder="https://images.unsplash.com/..." className="input-field" />
-              {form.imageUrl && (
-                <img src={form.imageUrl} alt="preview" className="mt-2 h-24 w-24 object-cover rounded-xl" onError={(e) => e.target.style.display='none'} />
-              )}
+            <div className="col-span-2 space-y-2">
+              <label className="text-xs font-bold text-outline uppercase tracking-widest">Product Image</label>
+              {/* Upload area */}
+              <div
+                className={`relative border-2 border-dashed rounded-xl transition-colors ${uploading ? 'border-primary/40 bg-primary/5' : 'border-gray-200 hover:border-primary/40 hover:bg-primary/5'}`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImageUpload(f) }}
+              >
+                {form.imageUrl ? (
+                  /* Preview */
+                  <div className="relative group">
+                    <img src={form.imageUrl} alt="Product" className="w-full h-48 object-cover rounded-xl" onError={(e) => e.target.style.display='none'} />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
+                      <label className="px-4 py-2 bg-white rounded-lg text-sm font-bold text-gray-800 cursor-pointer hover:bg-gray-100 transition-colors flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm">upload</span>
+                        Change Image
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e.target.files[0])} />
+                      </label>
+                      <button onClick={() => setForm(f => ({ ...f, imageUrl: '' }))} className="px-4 py-2 bg-red-500 rounded-lg text-sm font-bold text-white hover:bg-red-600 transition-colors flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Upload prompt */
+                  <label className="flex flex-col items-center justify-center h-36 cursor-pointer">
+                    {uploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-sm text-primary font-medium">Uploading to Cloudinary...</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-gray-400">
+                        <span className="material-symbols-outlined text-4xl">add_photo_alternate</span>
+                        <p className="text-sm font-medium">Click or drag an image here</p>
+                        <p className="text-xs">JPG, PNG, WEBP · Max 5MB</p>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e.target.files[0])} disabled={uploading} />
+                  </label>
+                )}
+              </div>
+              {/* URL override input */}
+              <input
+                value={form.imageUrl}
+                onChange={set('imageUrl')}
+                placeholder="Or paste an image URL directly..."
+                className="input-field text-xs text-gray-500"
+              />
+              {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-outline uppercase tracking-widest">Unit Price</label>

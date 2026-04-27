@@ -1,12 +1,43 @@
 const router = require('express').Router()
+const multer = require('multer')
 const pool = require('../db/pool')
 const { requireAdmin } = require('../middleware/auth')
 const { generateRFQPDF } = require('../services/pdf')
 const { sendQuotationEmail } = require('../services/email')
+const { cloudinary, storage } = require('../config/cloudinary')
+
+// Multer for product images (images only)
+const imageUpload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.mimetype)) cb(null, true)
+    else cb(new Error('Only image files are allowed (JPG, PNG, WEBP)'))
+  },
+}).single('image')
 
 router.use(requireAdmin)
 
 const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'QUOTATION_SENT', 'CLOSED', 'DECLINED']
+
+// ── POST /api/admin/upload-image — upload product image to Cloudinary ─────────
+router.post('/upload-image', (req, res) => {
+  imageUpload(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: 'UPLOAD_FAILED', message: err.message })
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'NO_FILE', message: 'No image file provided.' })
+    }
+    try {
+      // req.file.path is the Cloudinary secure URL when using multer-storage-cloudinary
+      res.json({ url: req.file.path })
+    } catch (e) {
+      res.status(500).json({ error: 'UPLOAD_FAILED', message: e.message })
+    }
+  })
+})
+
 
 // ── GET /api/admin/rfqs ───────────────────────────────────────────────────────
 router.get('/rfqs', async (req, res, next) => {
