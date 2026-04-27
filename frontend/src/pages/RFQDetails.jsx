@@ -115,12 +115,27 @@ export default function RFQDetails() {
   })
 
   const handleLegitimacyChange = async (isLegitimate) => {
-    let verificationFeedback = null
-    if (isLegitimate !== null) {
-      verificationFeedback = await requestFeedback('legitimacy', isLegitimate)
-      if (verificationFeedback === null) return // cancelled
+    console.log('[RFQDetails] Button Clicked - Legitimacy:', isLegitimate);
+    try {
+      let verificationFeedback = null
+      
+      // Only request feedback for rejections/fraud (isLegitimate === false)
+      // Legitimate marking (true) or resetting (null) skip the modal
+      if (isLegitimate === false) {
+        console.log('[RFQDetails] Opening Feedback Modal for Rejection...');
+        verificationFeedback = await requestFeedback('legitimacy', isLegitimate)
+        console.log('[RFQDetails] Modal Resolved with Feedback:', verificationFeedback);
+        if (verificationFeedback === null) {
+          console.log('[RFQDetails] Action Cancelled by User');
+          return
+        }
+      }
+      
+      console.log('[RFQDetails] Mutating Legitimacy State...');
+      updateLegitimacy.mutate({ isLegitimate, verificationFeedback })
+    } catch (err) {
+      console.error('[RFQDetails] Legitimacy Change Error:', err);
     }
-    updateLegitimacy.mutate({ isLegitimate, verificationFeedback })
   }
 
   // PDF download with auth token
@@ -283,8 +298,7 @@ export default function RFQDetails() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => updateLegitimacy.mutate(false)} className="px-4 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-xs hover:bg-red-50 transition-all">Mark Fraudulent</button>
-                  <button onClick={() => updateLegitimacy.mutate(true)} className="px-4 py-1.5 bg-primary text-white rounded-lg font-bold text-xs hover:bg-primary/90 transition-all">Mark Legitimate</button>
+                  {/* Buttons moved to lower section for clarity */}
                 </div>
               </div>
             )}
@@ -302,13 +316,6 @@ export default function RFQDetails() {
                     <p className="text-xs opacity-80">You can proceed with pricing or change your decision.</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => updateLegitimacy.mutate(null)} 
-                  className="px-4 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-bold text-xs hover:bg-gray-50 transition-all flex items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-sm">arrow_back</span>
-                  Change Decision
-                </button>
               </div>
             )}
           </div>
@@ -361,7 +368,7 @@ export default function RFQDetails() {
                     <a
                       href={
                         (rfq.legalDocumentUrl || rfq.legal_document_url)?.startsWith('http')
-                          ? (rfq.legalDocumentUrl || rfq.legal_document_url).replace('/image/upload/', '/image/upload/fl_attachment/')
+                          ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/proxy-document?url=${encodeURIComponent(rfq.legalDocumentUrl || rfq.legal_document_url)}`
                           : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${rfq.legalDocumentUrl || rfq.legal_document_url}`
                       }
                       target="_blank"
@@ -378,14 +385,22 @@ export default function RFQDetails() {
                     </span>
                   )}
                   {(rfq.legalDocumentUrl || rfq.legal_document_url) && rfq.isLegitimate === null && !isLocked && (
-                    <>
-                      <button onClick={() => handleLegitimacyChange(false)} className="p-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-all" title="Mark Incomplete / Fraud">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleLegitimacyChange(false)} 
+                        className="px-4 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-xs hover:bg-red-50 transition-all flex items-center gap-2"
+                      >
                         <span className="material-symbols-outlined text-sm">close</span>
+                        Mark Fraudulent
                       </button>
-                      <button onClick={() => handleLegitimacyChange(true)} className="p-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all" title="Mark Legitimate">
+                      <button 
+                        onClick={() => handleLegitimacyChange(true)} 
+                        className="px-4 py-1.5 bg-primary text-white rounded-lg font-bold text-xs hover:bg-primary/90 transition-all flex items-center gap-2"
+                      >
                         <span className="material-symbols-outlined text-sm">check</span>
+                        Mark Legitimate
                       </button>
-                    </>
+                    </div>
                   )}
                   {rfq.isLegitimate !== null && rfq.status !== 'CLOSED' && (
                     <button
@@ -586,7 +601,7 @@ export default function RFQDetails() {
                           <a
                             href={
                               fileUrl.startsWith('http')
-                                ? fileUrl.replace('/image/upload/', '/image/upload/fl_attachment/')
+                                ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/proxy-document?url=${encodeURIComponent(fileUrl)}`
                                 : fileUrl
                             }
                             target="_blank"
@@ -599,7 +614,7 @@ export default function RFQDetails() {
                           <a
                             href={
                               fileUrl.startsWith('http')
-                                ? fileUrl.replace('/image/upload/', '/image/upload/fl_attachment/')
+                                ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/proxy-document?url=${encodeURIComponent(fileUrl)}`
                                 : fileUrl
                             }
                             download={file.file_name}

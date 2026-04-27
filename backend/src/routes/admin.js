@@ -16,6 +16,43 @@ const imageUpload = multer({
   },
 }).single('image')
 
+// ── GET /api/admin/proxy-document — Fetch Cloudinary file and force PDF headers ────────
+// This MUST remain before requireAdmin since standard browser link navigation cannot send Bearer tokens
+router.get('/proxy-document', async (req, res, next) => {
+  try {
+    const { url } = req.query;
+    
+    // SSRF Protection: Only allow Cloudinary proxying!
+    if (!url || !url.startsWith('https://res.cloudinary.com/')) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Only Cloudinary URLs can be proxied' });
+    }
+    
+    const https = require('https');
+    https.get(url, (response) => {
+      if (response.statusCode >= 400) {
+        return res.status(response.statusCode).send('Failed to fetch document from cloud storage.');
+      }
+      
+      const contentType = response.headers['content-type'] || '';
+      const isActuallyImage = contentType.startsWith('image/');
+      
+      if (!isActuallyImage && url.toLowerCase().includes('pdf') || !isActuallyImage && !contentType) {
+        // Force PDF headers to make it viewable inline
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="document.pdf"');
+      } else {
+        res.setHeader('Content-Type', contentType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', 'inline');
+      }
+      
+      response.pipe(res);
+    }).on('error', (err) => {
+      console.error('Proxy Error:', err.message);
+      res.status(500).send('Proxy error occurred.');
+    });
+  } catch (err) { next(err) }
+});
+
 router.use(requireAdmin)
 
 const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'QUOTATION_SENT', 'CLOSED', 'DECLINED']
@@ -358,6 +395,8 @@ router.get('/rfqs/:id/pdf', async (req, res, next) => {
     res.send(pdfBuffer)
   } catch (err) { next(err) }
 })
+
+
 
 // ── Product management ────────────────────────────────────────────────────────
 router.get('/products', async (req, res, next) => {
