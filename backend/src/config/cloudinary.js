@@ -12,7 +12,9 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => {
     // Determine folder and resource_type based on common usage
     let folder = 'pharmalink/others';
-    let resource_type = 'auto'; // allow image, video, raw (pdf)
+    // Use 'raw' for PDFs to avoid Cloudinary security blocks on /image/ path
+    const isPDF = file.originalname.toLowerCase().endsWith('.pdf') || file.mimetype === 'application/pdf';
+    let resource_type = isPDF ? 'raw' : 'auto'; 
 
     if (file.fieldname === 'attachments') {
       folder = 'pharmalink/rfq/attachments';
@@ -20,6 +22,7 @@ const storage = new CloudinaryStorage({
       folder = 'pharmalink/rfq/legal';
     } else if (file.fieldname === 'image') {
       folder = 'pharmalink/products';
+      resource_type = 'image';
     } else if (req.baseUrl.includes('chat')) {
       folder = 'pharmalink/chat';
     }
