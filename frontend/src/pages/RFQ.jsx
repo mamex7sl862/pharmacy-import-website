@@ -533,7 +533,11 @@ function Step4({ onBack, onSubmit, isLoading, isError, errorMessage }) {
             {isError && (
               <div className="bg-white/10 rounded-lg p-3 mb-4 text-xs">
                 <p className="font-bold">Submission failed</p>
-                <p className="opacity-80">{errorMessage || 'Check backend connection.'}</p>
+                <p className="opacity-80">
+                  {errorMessage?.includes('upload') || errorMessage?.includes('cloud')
+                    ? 'File upload timed out. Please try clicking Submit again — your files are still attached.'
+                    : errorMessage || 'Check your connection and try again.'}
+                </p>
               </div>
             )}
             <button onClick={onSubmit} disabled={isLoading}
@@ -605,7 +609,10 @@ export default function RFQ() {
       if (legalFile) fd.append('legalDocument', legalFile)
       files.forEach(f => fd.append('attachments', f))
       
-      return api.post('/rfq', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+      return api.post('/rfq', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000, // 60s timeout for file uploads to Cloudinary
+      }).then(r => r.data)
     },
     onSuccess: (data) => {
       useRFQStore.getState()._pendingFiles = []
@@ -613,6 +620,7 @@ export default function RFQ() {
       resetRFQ()
       navigate(`/rfq/success/${data.rfqNumber}`)
     },
+    // Don't clear pending files on error so user can retry
   })
 
   const stepTitles = ['Customer Information', 'Product Selection', 'Logistics & Documents', 'Review & Submit']

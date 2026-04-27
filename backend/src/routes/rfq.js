@@ -60,8 +60,26 @@ const rfqSchema = Joi.object({
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const isUUID = (s) => UUID_RE.test(s)
 
+// ── Multer error wrapper ──────────────────────────────────────────────────────
+const uploadMiddleware = (req, res, next) => {
+  upload(req, res, (err) => {
+    if (err) {
+      console.error('File upload error:', err.message)
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'FILE_TOO_LARGE', message: 'File must be under 10MB.' })
+      }
+      if (err.message?.includes('Invalid file type')) {
+        return res.status(400).json({ error: 'INVALID_FILE_TYPE', message: err.message })
+      }
+      // Cloudinary or other upload error
+      return res.status(500).json({ error: 'UPLOAD_FAILED', message: 'File upload to cloud storage failed. Please try again.' })
+    }
+    next()
+  })
+}
+
 // ── POST /api/rfq ─────────────────────────────────────────────────────────────
-router.post('/', upload, async (req, res, next) => {
+router.post('/', uploadMiddleware, async (req, res, next) => {
   const client = await pool.connect()
   try {
     // Body may come as JSON string when using multipart/form-data
@@ -135,12 +153,13 @@ router.post('/', upload, async (req, res, next) => {
       )
     }
 
-    // Save uploaded attachments
+    // Save uploaded attachments (files already uploaded to Cloudinary by multer)
     if (req.files) {
       // General attachments
       if (req.files.attachments) {
         for (const file of req.files.attachments) {
-          const fileUrl = file.path // Cloudinary full URL
+          const fileUrl = file.path // Cloudinary secure URL
+          console.log('Saving attachment:', file.originalname, '->', fileUrl)
           await client.query(
             `INSERT INTO rfq_attachments (rfq_id, file_name, file_url, file_size, mime_type)
              VALUES ($1,$2,$3,$4,$5)`,
@@ -148,10 +167,11 @@ router.post('/', upload, async (req, res, next) => {
           )
         }
       }
-      // Legal document
+      // Legal document — update the row we just inserted
       if (req.files.legalDocument) {
         const file = req.files.legalDocument[0]
-        const fileUrl = file.path // Cloudinary full URL
+        const fileUrl = file.path // Cloudinary secure URL
+        console.log('Saving legal document:', file.originalname, '->', fileUrl)
         await client.query(
           `UPDATE rfqs SET legal_document_url = $1 WHERE id = $2`,
           [fileUrl, rfq.id]
