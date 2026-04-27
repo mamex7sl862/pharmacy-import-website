@@ -36,12 +36,13 @@ router.get('/proxy-document', async (req, res, next) => {
       const contentType = response.headers['content-type'] || '';
       const isActuallyImage = contentType.startsWith('image/');
       
-      if (!isActuallyImage && url.toLowerCase().includes('pdf') || !isActuallyImage && !contentType) {
-        // Force PDF headers to make it viewable inline
+      if (!isActuallyImage) {
+        // Cloudinary serves raw PDFs without extensions as application/octet-stream
+        // We confidently force PDF headers here so the browser renders it inline
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'inline; filename="document.pdf"');
       } else {
-        res.setHeader('Content-Type', contentType || 'application/octet-stream');
+        res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', 'inline');
       }
       
