@@ -222,19 +222,26 @@ function Step2({ onNext, onBack }) {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input type="number" min="1" value={item.quantity}
+                    <input type="number" min="1" value={item.quantity === '' ? '' : item.quantity}
                       onChange={e => {
-                        const val = parseInt(e.target.value) || 1
+                        const raw = e.target.value;
+                        const val = raw === '' ? '' : parseInt(raw, 10);
                         
                         // Check stock validation against available (reserve-adjusted) quantity
                         const hasStock = item.stockQuantity && item.stockQuantity > 0
-                        const exceedsStock = hasStock && val > item.stockQuantity
+                        const exceedsStock = hasStock && val !== '' && val > item.stockQuantity
                         
                         // Update both quantity and stock error in one call
                         updateProduct(item.productId, { 
                           quantity: val, 
                           stockError: exceedsStock 
                         })
+                      }}
+                      onBlur={() => {
+                        // Restore minimum of 1 if left empty or set to 0
+                        if (item.quantity === '' || item.quantity < 1 || isNaN(item.quantity)) {
+                          updateProduct(item.productId, { quantity: 1, stockError: false })
+                        }
                       }}
                       className="w-16 bg-surface-container-high rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 transition-all" />
                     <select value={item.unit} onChange={e => updateProduct(item.productId, { unit: e.target.value })}
