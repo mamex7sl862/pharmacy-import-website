@@ -359,17 +359,11 @@ export default function RFQDetails() {
                 <div className="flex items-center gap-2">
                   {(rfq.legalDocumentUrl || rfq.legal_document_url) ? (
                     <a
-                      href={() => {
-                        let url = (rfq.legalDocumentUrl || rfq.legal_document_url).startsWith('http') 
-                          ? (rfq.legalDocumentUrl || rfq.legal_document_url) 
-                          : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${rfq.legalDocumentUrl || rfq.legal_document_url}`;
-                        
-                        // Fix for Cloudinary PDFs failing in /image/ path
-                        if (url.includes('cloudinary.com') && url.toLowerCase().endsWith('.pdf') && url.includes('/image/upload/')) {
-                          url = url.replace('/image/upload/', '/image/upload/fl_attachment/');
-                        }
-                        return url;
-                      }()}
+                      href={
+                        (rfq.legalDocumentUrl || rfq.legal_document_url)?.startsWith('http')
+                          ? (rfq.legalDocumentUrl || rfq.legal_document_url).replace('/image/upload/', '/image/upload/fl_attachment/')
+                          : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${rfq.legalDocumentUrl || rfq.legal_document_url}`
+                      }
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-1.5 shadow-sm"
@@ -590,13 +584,11 @@ export default function RFQDetails() {
                         
                         <div className="flex gap-2 border-t border-gray-100 pt-3">
                           <a
-                            href={() => {
-                              let url = fileUrl;
-                              if (url.includes('cloudinary.com') && url.toLowerCase().endsWith('.pdf') && url.includes('/image/upload/')) {
-                                url = url.replace('/image/upload/', '/image/upload/fl_attachment/');
-                              }
-                              return url;
-                            }()}
+                            href={
+                              fileUrl.startsWith('http')
+                                ? fileUrl.replace('/image/upload/', '/image/upload/fl_attachment/')
+                                : fileUrl
+                            }
                             target="_blank"
                             rel="noreferrer"
                             className="flex-1 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-[10px] font-black text-gray-600 uppercase flex items-center justify-center gap-1 transition-colors"
@@ -605,13 +597,11 @@ export default function RFQDetails() {
                             View
                           </a>
                           <a
-                            href={() => {
-                              let url = fileUrl;
-                              if (url.includes('cloudinary.com') && url.toLowerCase().endsWith('.pdf') && url.includes('/image/upload/')) {
-                                url = url.replace('/image/upload/', '/image/upload/fl_attachment/');
-                              }
-                              return url;
-                            }()}
+                            href={
+                              fileUrl.startsWith('http')
+                                ? fileUrl.replace('/image/upload/', '/image/upload/fl_attachment/')
+                                : fileUrl
+                            }
                             download={file.file_name}
                             className="flex-1 py-1.5 bg-primary text-white hover:bg-primary/90 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 transition-colors"
                           >

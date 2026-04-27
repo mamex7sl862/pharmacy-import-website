@@ -227,13 +227,11 @@ export default function CustomerRFQDetail() {
               <div className="space-y-3">
                 {rfq.attachments.map((file) => (
                   <a key={file.id} 
-                    href={() => {
-                        let url = file.file_url || file.fileUrl;
-                        if (url?.includes('cloudinary.com') && url.toLowerCase().endsWith('.pdf') && url.includes('/image/upload/')) {
-                          url = url.replace('/image/upload/', '/image/upload/fl_attachment/');
-                        }
-                        return url;
-                    }()} 
+                    href={
+                        (file.file_url || file.fileUrl)?.startsWith('http')
+                          ? (file.file_url || file.fileUrl).replace('/image/upload/', '/image/upload/fl_attachment/')
+                          : (file.file_url || file.fileUrl)
+                    } 
                     target="_blank" 
                     rel="noreferrer"
                     className="flex items-center gap-3 p-3 bg-surface-container-low rounded-xl hover:bg-surface-container transition-colors group">
