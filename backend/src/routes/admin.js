@@ -168,23 +168,31 @@ router.patch('/rfqs/:id/status', async (req, res, next) => {
 // ── PATCH /api/admin/rfqs/:id/legitimacy ─────────────────────────────────────
 router.patch('/rfqs/:id/legitimacy', async (req, res, next) => {
   try {
-    const { isLegitimate, verificationFeedback } = req.body
-    console.log('Legitimacy update request:', { 
-      id: req.params.id, 
-      isLegitimate, 
-      type: typeof isLegitimate,
-      verificationFeedback 
-    })
+    let { isLegitimate, verificationFeedback } = req.body
     
+    // Safety convert strings to booleans (common in some client environments)
+    if (isLegitimate === 'true') isLegitimate = true;
+    if (isLegitimate === 'false') isLegitimate = false;
+    if (isLegitimate === 'null') isLegitimate = null;
+
+    console.log(`[Admin] Legitimacy update request for ${req.params.id}:`, { isLegitimate, type: typeof isLegitimate });
+
+    // Validate isLegitimate type
     if (isLegitimate !== true && isLegitimate !== false && isLegitimate !== null) {
       return res.status(400).json({ 
-        error: 'INVALID_VALUE', 
-        message: `isLegitimate must be boolean or null, received ${typeof isLegitimate}` 
+        error: 'INVALID_INPUT', 
+        message: `isLegitimate must be boolean or null. Received: ${isLegitimate} (${typeof isLegitimate})` 
       })
     }
 
-    // If marked as not legitimate, automatically decline the RFQ
-    // If resetting to null while DECLINED, move back to NEW
+    // Enforce reason for Fraudulent (false)
+    if (isLegitimate === false && (!verificationFeedback || !verificationFeedback.trim())) {
+       return res.status(400).json({ 
+         error: 'REASON_REQUIRED', 
+         message: 'A reason is required when marking as fraudulent to maintain transparency.' 
+       })
+    }
+
     let status = isLegitimate === false ? 'DECLINED' : undefined
 
     if (isLegitimate === null) {
