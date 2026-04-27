@@ -707,7 +707,7 @@ export default function RFQ() {
             {/* Compact header row */}
             <div className="flex items-center justify-between mb-5">
               <div>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">Request for Quotation</p>
+<p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">Request for Quotation</p>
                 <h1 className="font-headline text-2xl font-semibold text-on-surface leading-tight">{stepTitles[currentStep - 1]}</h1>
               </div>
               <div className="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-full">
@@ -719,7 +719,39 @@ export default function RFQ() {
           </div>
 
           {/* Step card */}
-          <div className="bg-surface-container-lowest rounded-2xl shadow-lg p-4 sm:p-8">
+          <div className="bg-surface-container-lowest rounded-2xl shadow-lg p-4 sm:p-8 relative">
+            {/* Check if we lost files on refresh */}
+            {(() => {
+              const hasDocumentName = !!additionalInfo.legalDocumentName
+              const hasDocumentFile = !!useRFQStore.getState()._pendingLegalDocument
+              const filesLostOnRefresh = hasDocumentName && !hasDocumentFile
+              
+              if (currentStep === 4 && filesLostOnRefresh) {
+                return (
+                  <div className="absolute inset-0 z-50 bg-surface-container-lowest/95 backdrop-blur-sm flex items-center justify-center p-6 text-center rounded-2xl">
+                    <div className="max-w-md bg-white rounded-2xl shadow-2xl p-8 border border-primary/20">
+                      <span className="material-symbols-outlined text-5xl text-primary mb-4 animate-bounce">upload_file</span>
+                      <h3 className="text-xl font-bold text-on-surface mb-2">Re-upload Required</h3>
+                      <p className="text-sm text-outline mb-6">
+                        For security, your browser cleared the attached files when you refreshed the page. 
+                        Please go back one step and re-select your Business License before submitting.
+                      </p>
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => goTo(3)}
+                          className="flex-1 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg"
+                        >
+                          <span className="material-symbols-outlined">arrow_back</span>
+                          Go Back to Upload
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+              return null
+            })()}
+
             {currentStep === 1 && (
               <Step1 onNext={async (data) => {
                 try { const { data: u } = await api.put('/customer/profile', data); updateUser(u) } catch (_) {}
