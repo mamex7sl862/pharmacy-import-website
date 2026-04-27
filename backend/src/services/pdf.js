@@ -214,14 +214,38 @@ function generateRFQPDF(rfq) {
 
     // Grand total row
     if (hasPrice) {
-      const GT_H = 30
-      doc.rect(ML, y, TW, GT_H).fill(C.navy)
+      const subTotal = grandTotal;
+      const vat = subTotal * 0.15;
+      const finalTotal = subTotal + vat;
+
+      const SUM_H = 75
+      doc.rect(ML, y, TW, SUM_H).fill(C.navy)
+      
+      const lblX = ML + 12;
+      const lblW = TW - COL.total - 24;
+
+      // Subtotal
+      doc.fillColor(C.sky).font('Helvetica').fontSize(8)
+         .text('SUBTOTAL', lblX, y + 14, { width: lblW, align: 'right' })
+      doc.fillColor(C.sky).font('Helvetica').fontSize(8)
+         .text(`${currency} ${fmt(subTotal)}`, cx.total, y + 14, { width: COL.total, align: 'right' })
+
+      // VAT (15%)
+      doc.fillColor(C.sky).font('Helvetica').fontSize(8)
+         .text('VAT (15%)', lblX, y + 28, { width: lblW, align: 'right' })
+      doc.fillColor(C.sky).font('Helvetica').fontSize(8)
+         .text(`${currency} ${fmt(vat)}`, cx.total, y + 28, { width: COL.total, align: 'right' })
+
+      // Divider
+      doc.moveTo(cx.total - 24, y + 44).lineTo(W - MR - 12, y + 44).strokeColor('rgba(255,255,255,0.2)').lineWidth(1).stroke()
+
+      // Grand Total
       doc.fillColor(C.white).font('Helvetica-Bold').fontSize(9)
-         .text('GRAND TOTAL', ML + 12, y + 10, { width: TW - COL.total - 12 })
-      doc.fillColor('#FCD34D').font('Helvetica-Bold').fontSize(12)
-         .text(`${currency} ${fmt(grandTotal)}`, cx.total, y + 9,
-               { width: COL.total, align: 'right' })
-      y += GT_H
+         .text('GRAND TOTAL', lblX, y + 54, { width: lblW, align: 'right' })
+      doc.fillColor('#FCD34D').font('Helvetica-Bold').fontSize(11)
+         .text(`${currency} ${fmt(finalTotal)}`, cx.total, y + 53, { width: COL.total, align: 'right' })
+
+      y += SUM_H
     }
 
     y += 20
@@ -247,7 +271,7 @@ function generateRFQPDF(rfq) {
     doc.fillColor(C.muted).font('Helvetica').fontSize(7.5)
        .text(
          'Prices are valid for 30 days from the issue date. Payment: 50% advance, 50% prior to dispatch. ' +
-         'All prices exclude applicable taxes and import duties. Subject to product availability at time of order confirmation.',
+         'Unit prices are exclusive of VAT. A 15% VAT is strictly applied to the final total in accordance with Ethiopian business regulations.',
          ML + 12, y + 22, { width: TW - 24 }
        )
     y += termsH + 14
