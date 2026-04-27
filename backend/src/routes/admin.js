@@ -170,49 +170,51 @@ router.patch('/rfqs/:id/legitimacy', async (req, res, next) => {
   try {
     let { isLegitimate, verificationFeedback } = req.body
     
-    // Safety convert strings to booleans (common in some client environments)
-    if (isLegitimate === 'true') isLegitimate = true;
-    if (isLegitimate === 'false') isLegitimate = false;
-    if (isLegitimate === 'null') isLegitimate = null;
+    // Convert anything to boolean/null
+    if (isLegitimate === 'true' || isLegitimate === true || isLegitimate === 1 || isLegitimate === '1') isLegitimate = true;
+    else if (isLegitimate === 'false' || isLegitimate === false || isLegitimate === 0 || isLegitimate === '0') isLegitimate = false;
+    else isLegitimate = null;
 
-    console.log(`[Admin] Legitimacy update request for ${req.params.id}:`, { isLegitimate, type: typeof isLegitimate });
+    console.log(`[Legitimacy Debug] ID: ${req.params.id}, Resolved Value: ${isLegitimate}, Feedback: ${verificationFeedback}`);
 
-    // Validate isLegitimate type
-    if (isLegitimate !== true && isLegitimate !== false && isLegitimate !== null) {
-      return res.status(400).json({ 
-        error: 'INVALID_INPUT', 
-        message: `isLegitimate must be boolean or null. Received: ${isLegitimate} (${typeof isLegitimate})` 
-      })
-    }
-
-    // Enforce reason for Fraudulent (false)
+    // Require reason ONLY if definitively marking as false
     if (isLegitimate === false && (!verificationFeedback || !verificationFeedback.trim())) {
        return res.status(400).json({ 
          error: 'REASON_REQUIRED', 
-         message: 'A reason is required when marking as fraudulent to maintain transparency.' 
+         message: 'Please provide a reason why this business was marked as fraudulent.' 
        })
     }
 
-    let status = isLegitimate === false ? 'DECLINED' : undefined
-
-    if (isLegitimate === null) {
-      const { rows: current } = await pool.query('SELECT status FROM rfqs WHERE id = $1', [req.params.id])
-      if (current[0].status === 'DECLINED') status = 'NEW'
+    try {
+        let status = isLegitimate === false ? 'DECLINED' : undefined
+        if (isLegitimate === null) {
+          const { rows: current } = await pool.query('SELECT status FROM rfqs WHERE id = $1', [req.params.id])
+          if (current.length && current[0].status === 'DECLINED') status = 'NEW'
+        }
+        
+        if (status) {
+          await pool.query(
+            'UPDATE rfqs SET is_legitimate = $1, status = $2, verification_feedback = $3, updated_at = NOW() WHERE id = $4',
+            [isLegitimate, status, verificationFeedback || null, req.params.id]
+          )
+        } else {
+          await pool.query(
+            'UPDATE rfqs SET is_legitimate = $1, verification_feedback = $2, updated_at = NOW() WHERE id = $3',
+            [isLegitimate, verificationFeedback || null, req.params.id]
+          )
+        }
+        res.json({ success: true, processedAs: isLegitimate })
+    } catch (dbErr) {
+        console.error('[Legitimacy DB Error]:', dbErr.message);
+        if (dbErr.message.includes('column') || dbErr.message.includes('does not exist')) {
+            return res.status(400).json({ 
+                error: 'DATABASE_OUT_OF_SYNC', 
+                message: 'The database is missing the required columns. Please restart the backend to run migrations.',
+                details: dbErr.message
+            });
+        }
+        throw dbErr; // let global handler take it
     }
-    
-    if (status) {
-      await pool.query(
-        'UPDATE rfqs SET is_legitimate = $1, status = $2, verification_feedback = $3, updated_at = NOW() WHERE id = $4',
-        [isLegitimate, status, verificationFeedback || null, req.params.id]
-      )
-    } else {
-      await pool.query(
-        'UPDATE rfqs SET is_legitimate = $1, verification_feedback = $2, updated_at = NOW() WHERE id = $3',
-        [isLegitimate, verificationFeedback || null, req.params.id]
-      )
-    }
-
-    res.json({ success: true, status: status || 'unchanged' })
   } catch (err) { next(err) }
 })
 
