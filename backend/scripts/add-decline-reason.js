@@ -1,0 +1,5 @@
+require('dotenv').config()
+const pool = require('../src/db/pool')
+pool.query('ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS decline_reason TEXT')
+  .then(() => { console.log('✅ decline_reason column added'); process.exit(0) })
+  .catch(e => { console.error(e.message); process.exit(1) })

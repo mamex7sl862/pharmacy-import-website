@@ -51,6 +51,7 @@ router.get('/rfqs', async (req, res, next) => {
               r.submitted_at AS "submittedAt",
               r.requested_delivery_date AS "requestedDeliveryDate",
               r.shipping_method AS "shippingMethod",
+              r.decline_reason AS "declineReason",
               COUNT(ri.id)::int AS "itemCount"
        FROM rfqs r
        LEFT JOIN rfq_items ri ON ri.rfq_id = r.id
@@ -97,9 +98,10 @@ router.post('/rfqs/:id/decline', async (req, res, next) => {
     if (rfq.status !== 'QUOTATION_SENT') {
       return res.status(400).json({ error: 'Only a QUOTATION_SENT RFQ can be declined' })
     }
+    const { reason } = req.body
     await client.query(
-      `UPDATE rfqs SET status = 'DECLINED', updated_at = NOW() WHERE id = $1`,
-      [rfq.id]
+      `UPDATE rfqs SET status = 'DECLINED', decline_reason = $1, updated_at = NOW() WHERE id = $2`,
+      [reason || null, rfq.id]
     )
     res.json({ success: true, message: 'Quotation declined.', rfqNumber: rfq.rfq_number })
   } catch (err) {

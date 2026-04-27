@@ -21,8 +21,9 @@ export default function CustomerDashboard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const newRfq = location.state?.newRfq
-  const [acceptingRfq, setAcceptingRfq] = useState(null) // holds the rfq being accepted
-  const [decliningRfq, setDecliningRfq] = useState(null) // holds the rfq being declined
+  const [acceptingRfq, setAcceptingRfq] = useState(null)
+  const [decliningRfq, setDecliningRfq] = useState(null)
+  const [declineReason, setDeclineReason] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-rfqs'],
@@ -38,10 +39,11 @@ export default function CustomerDashboard() {
   })
 
   const declineMutation = useMutation({
-    mutationFn: (rfqId) => api.post(`/customer/rfqs/${rfqId}/decline`),
+    mutationFn: ({ rfqId, reason }) => api.post(`/customer/rfqs/${rfqId}/decline`, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customer-rfqs'] })
       setDecliningRfq(null)
+      setDeclineReason('')
     },
   })
 
@@ -159,6 +161,14 @@ export default function CustomerDashboard() {
 
                     {rfq.status === 'QUOTATION_SENT' ? (
                       <>
+                        {/* View Details */}
+                        <Link
+                          to={`/portal/rfqs/${rfq.id}`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-sm">visibility</span>
+                          View
+                        </Link>
                         {/* Download PDF */}
                         <button
                           onClick={() => downloadPDF(rfq)}
@@ -208,6 +218,16 @@ export default function CustomerDashboard() {
                     </p>
                   </div>
                 )}
+
+                {/* Decline reason */}
+                {rfq.status === 'DECLINED' && rfq.declineReason && (
+                  <div className="mt-3 pt-3 border-t border-red-100 flex items-start gap-2">
+                    <span className="material-symbols-outlined text-red-500 text-sm flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                    <p className="text-xs text-red-700">
+                      <span className="font-bold">Reason: </span>{rfq.declineReason}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
             
@@ -240,6 +260,19 @@ export default function CustomerDashboard() {
               Are you sure you want to decline this quotation? The admin will be notified and this RFQ will be closed. You can always submit a new RFQ if needed.
             </p>
 
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Reason for declining <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                rows={3}
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                placeholder="e.g. Price too high, need to reconsider quantities..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
+              />
+            </div>
+
             {declineMutation.isError && (
               <p className="text-sm text-red-600 mb-4 bg-red-50 px-4 py-2 rounded-lg border border-red-200">
                 Something went wrong. Please try again.
@@ -248,14 +281,14 @@ export default function CustomerDashboard() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => { setDecliningRfq(null); declineMutation.reset() }}
+                onClick={() => { setDecliningRfq(null); declineMutation.reset(); setDeclineReason('') }}
                 disabled={declineMutation.isPending}
                 className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
-                onClick={() => declineMutation.mutate(decliningRfq.id)}
+                onClick={() => declineMutation.mutate({ rfqId: decliningRfq.id, reason: declineReason })}
                 disabled={declineMutation.isPending}
                 className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
               >

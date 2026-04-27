@@ -257,7 +257,7 @@ export default function RFQList() {
                       </td>
                       <td className="py-4 px-4 font-bold text-on-surface-variant">{rfq.itemCount}</td>
                       <td className="py-4 px-4 text-on-surface-variant text-xs">
-                        {new Date(rfq.submittedAt).toLocaleDateString()}
+                        {new Date(rfq.submittedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -315,7 +315,7 @@ export default function RFQList() {
                       <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${STATUS_BADGE[rfq.status]}`}>
                         {STATUS_LABEL[rfq.status]}
                       </span>
-                      <p className="text-[10px] text-outline font-bold mt-2">{new Date(rfq.submittedAt).toLocaleDateString()}</p>
+                      <p className="text-[10px] text-outline font-bold mt-2">{new Date(rfq.submittedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
                   

@@ -359,7 +359,9 @@ export default function RFQDetails() {
                 <div className="flex items-center gap-2">
                   {(rfq.legalDocumentUrl || rfq.legal_document_url) ? (
                     <a
-                      href={(rfq.legalDocumentUrl || rfq.legal_document_url).startsWith('http') ? (rfq.legalDocumentUrl || rfq.legal_document_url) : `http://localhost:5000${rfq.legalDocumentUrl || rfq.legal_document_url}`}
+                      href={(rfq.legalDocumentUrl || rfq.legal_document_url).startsWith('http') 
+                        ? (rfq.legalDocumentUrl || rfq.legal_document_url) 
+                        : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${rfq.legalDocumentUrl || rfq.legal_document_url}`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-1.5 shadow-sm"
@@ -556,7 +558,9 @@ export default function RFQDetails() {
                     const isPDF = file.mime_type === 'application/pdf'
                     const isImage = file.mime_type?.startsWith('image/')
                     const fileUrlStr = file.file_url || file.fileUrl
-                    const fileUrl = fileUrlStr?.startsWith('http') ? fileUrlStr : `http://localhost:5000${fileUrlStr}`
+                    const fileUrl = fileUrlStr?.startsWith('http') 
+                      ? fileUrlStr 
+                      : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${fileUrlStr}`
 
                     return (
                       <div key={file.id} className="group p-3 rounded-xl border border-gray-200 hover:border-primary/30 hover:bg-primary/5 transition-all flex flex-col gap-3">

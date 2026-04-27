@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS rfqs (
   status                  VARCHAR(30) NOT NULL DEFAULT 'NEW',
   internal_notes          TEXT,
   quote_notes             TEXT,
+  decline_reason          TEXT,
   submitted_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

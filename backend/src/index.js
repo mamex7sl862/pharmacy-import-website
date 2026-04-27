@@ -38,8 +38,68 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// Serve uploaded files
+// Serve uploaded files (local dev)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
+
+// File proxy — streams Cloudinary files through our server to avoid 401
+app.get('/api/files/:attachmentId', async (req, res) => {
+  try {
+    const pool = require('./db/pool')
+    const https = require('https')
+    const http = require('http')
+
+    const { rows } = await pool.query(
+      'SELECT file_url, file_name, mime_type FROM rfq_attachments WHERE id = $1',
+      [req.params.attachmentId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'File not found' })
+
+    const { file_url, file_name, mime_type } = rows[0]
+
+    if (!file_url.startsWith('http')) {
+      return res.sendFile(path.join(__dirname, '../uploads', path.basename(file_url)))
+    }
+
+    const protocol = file_url.startsWith('https') ? https : http
+    protocol.get(file_url, (stream) => {
+      res.setHeader('Content-Type', mime_type || 'application/octet-stream')
+      res.setHeader('Content-Disposition', `inline; filename="${file_name}"`)
+      stream.pipe(res)
+    }).on('error', () => res.status(500).json({ error: 'Failed to fetch file' }))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Legal document proxy
+app.get('/api/legal/:rfqId', async (req, res) => {
+  try {
+    const pool = require('./db/pool')
+    const https = require('https')
+    const http = require('http')
+
+    const { rows } = await pool.query(
+      'SELECT legal_document_url FROM rfqs WHERE id = $1',
+      [req.params.rfqId]
+    )
+    if (!rows.length || !rows[0].legal_document_url) return res.status(404).json({ error: 'Document not found' })
+
+    const fileUrl = rows[0].legal_document_url
+
+    if (!fileUrl.startsWith('http')) {
+      return res.sendFile(path.join(__dirname, '../uploads', path.basename(fileUrl)))
+    }
+
+    const protocol = fileUrl.startsWith('https') ? https : http
+    protocol.get(fileUrl, (stream) => {
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', 'inline; filename="legal-document.pdf"')
+      stream.pipe(res)
+    }).on('error', () => res.status(500).json({ error: 'Failed to fetch document' }))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
 
 // Rate limiting for RFQ submissions
 const rfqLimiter = rateLimit({
