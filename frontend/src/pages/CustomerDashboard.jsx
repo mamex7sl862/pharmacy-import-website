@@ -136,7 +136,7 @@ export default function CustomerDashboard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {data.slice(0, 5).map((rfq) => (
+            {data?.slice(0, 5).map((rfq) => (
               <div key={rfq.id} className={`bg-white rounded-lg p-4 hover:shadow-md transition-all border group ${rfq.status === 'QUOTATION_SENT' ? 'border-green-200 bg-green-50/30' : 'border-gray-100'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -231,7 +231,7 @@ export default function CustomerDashboard() {
               </div>
             ))}
             
-            {data.length > 5 && (
+            {data?.length > 5 && (
               <div className="text-center pt-4">
                 <Link to="/portal/rfqs" className="text-sm font-medium text-primary hover:text-primary-container transition-colors">
                   View all RFQs ({data.length})

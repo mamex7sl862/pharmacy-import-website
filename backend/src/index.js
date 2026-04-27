@@ -172,6 +172,7 @@ app.listen(PORT, async () => {
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS legal_document_url VARCHAR(255);
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS is_legitimate BOOLEAN DEFAULT NULL;
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS verification_feedback TEXT;
+      ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS decline_reason TEXT;
     `)
     console.log('✅ Auto-migrations completed')
 
