@@ -65,8 +65,7 @@ function Toast({ message, onDone }) {
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, isAdded, onAdd }) {
   const [imgError, setImgError] = useState(false)
-  const stock      = product.stockQuantity ?? product.stock_quantity ?? 0
-  const outOfStock = stock === 0
+  const outOfStock = product.inStock === false
   const cfg        = CATEGORY_CONFIG[product.category] || CATEGORY_CONFIG['prescription']
 
   return (

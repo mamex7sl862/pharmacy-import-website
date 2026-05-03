@@ -166,13 +166,24 @@ app.listen(PORT, async () => {
   try {
     const pool = require('./db/pool')
     
-    // Auto-migrate RFQ legitimacy columns
+    // Auto-migrate RFQ legitimacy columns + password reset tokens
     console.log('⏳ Running auto-migrations...')
     await pool.query(`
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS legal_document_url VARCHAR(255);
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS is_legitimate BOOLEAN DEFAULT NULL;
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS verification_feedback TEXT;
       ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS decline_reason TEXT;
+    `)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used       BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id);
     `)
     console.log('✅ Auto-migrations completed')
 

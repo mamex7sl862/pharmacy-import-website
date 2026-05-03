@@ -10,9 +10,19 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-// Graceful email fallback — don't crash if SMTP not configured
+// Returns true only when SMTP is fully configured with real (non-placeholder) credentials
+function isSmtpConfigured() {
+  return !!(
+    process.env.SMTP_HOST &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_USER !== 'your@email.com' &&
+    process.env.SMTP_PASS &&
+    process.env.SMTP_PASS !== 'your-app-password'
+  )
+}
+
 async function sendCustomerConfirmation(email, rfqNumber, customerName) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+  if (!isSmtpConfigured()) {
     console.log(`[EMAIL SKIPPED] Confirmation to ${email} for ${rfqNumber}`)
     return
   }
@@ -36,7 +46,7 @@ async function sendCustomerConfirmation(email, rfqNumber, customerName) {
 }
 
 async function sendAdminNotification(rfqNumber, customerName, companyName, itemCount) {
-  if (!process.env.SMTP_HOST || !process.env.ADMIN_EMAIL) {
+  if (!isSmtpConfigured() || !process.env.ADMIN_EMAIL) {
     console.log(`[EMAIL SKIPPED] Admin notification for ${rfqNumber}`)
     return
   }
@@ -59,7 +69,7 @@ async function sendAdminNotification(rfqNumber, customerName, companyName, itemC
 }
 
 async function sendQuotationEmail(email, rfqNumber, pdfBuffer) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+  if (!isSmtpConfigured()) {
     console.log(`[EMAIL SKIPPED] Quotation to ${email} for ${rfqNumber}`)
     return
   }
@@ -85,10 +95,8 @@ async function sendQuotationEmail(email, rfqNumber, pdfBuffer) {
   }
 }
 
-module.exports = { sendCustomerConfirmation, sendAdminNotification, sendQuotationEmail, sendContactAutoReply }
-
 async function sendContactAutoReply(email, firstName) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+  if (!isSmtpConfigured()) {
     console.log(`[EMAIL SKIPPED] Contact auto-reply to ${email}`)
     return
   }
@@ -108,4 +116,40 @@ async function sendContactAutoReply(email, firstName) {
   } catch (err) {
     console.error('[EMAIL ERROR] Contact auto-reply:', err.message)
   }
+}
+
+async function sendPasswordResetEmail(email, resetUrl) {
+  if (!isSmtpConfigured()) {
+    console.log(`[EMAIL SKIPPED] Password reset for ${email}`)
+    console.log(`[RESET LINK] ${resetUrl}`)
+    return
+  }
+  try {
+    await transporter.sendMail({
+      from: `"PharmaLink Wholesale" <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: 'Reset your password — PharmaLink Wholesale',
+      html: `
+        <h2>Password Reset Request</h2>
+        <p>We received a request to reset the password for your account.</p>
+        <p>Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.</p>
+        <br/>
+        <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Reset Password</a>
+        <br/><br/>
+        <p>If you didn't request this, you can safely ignore this email — your password won't change.</p>
+        <p>PharmaLink Wholesale Team</p>
+      `,
+    })
+  } catch (err) {
+    console.error('[EMAIL ERROR] Password reset:', err.message)
+    // Don't re-throw — token is saved, flow should still succeed
+  }
+}
+
+module.exports = {
+  sendCustomerConfirmation,
+  sendAdminNotification,
+  sendQuotationEmail,
+  sendContactAutoReply,
+  sendPasswordResetEmail,
 }

@@ -1,8 +1,10 @@
 const router = require('express').Router()
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
 const Joi = require('joi')
 const pool = require('../db/pool')
+const { sendPasswordResetEmail } = require('../services/email')
 
 const registerSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -74,6 +76,93 @@ router.post('/login', async (req, res, next) => {
       user: { id: user.id, email: user.email, fullName: user.full_name, companyName: user.company_name, role: user.role },
     })
   } catch (err) { next(err) }
+})
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ error: 'VALIDATION_ERROR' })
+
+    // Always respond 200 to avoid user enumeration
+    const { rows } = await pool.query('SELECT id FROM users WHERE email = $1 AND is_active = true', [email])
+    if (rows.length) {
+      const user = rows[0]
+
+      // Invalidate any existing unused tokens for this user
+      await pool.query(
+        'UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND used = false',
+        [user.id]
+      )
+
+      // Generate a secure random token
+      const rawToken = crypto.randomBytes(32).toString('hex')
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+
+      await pool.query(
+        'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+        [user.id, tokenHash, expiresAt]
+      )
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+      const resetUrl = `${frontendUrl}/reset-password?id=${user.id}&token=${rawToken}`
+
+      await sendPasswordResetEmail(email, resetUrl)
+    }
+
+    res.json({ message: 'If that email exists, a reset link has been sent.' })
+  } catch (err) {
+    console.error('[FORGOT-PASSWORD ERROR]', err.message, err.stack)
+    next(err)
+  }
+})
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { id, token, newPassword } = req.body
+    if (!id || !token || !newPassword) return res.status(400).json({ error: 'VALIDATION_ERROR' })
+    if (newPassword.length < 8) return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' })
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+
+    // Find a valid, unused, non-expired token
+    const { rows } = await pool.query(
+      `SELECT prt.id, prt.user_id
+       FROM password_reset_tokens prt
+       JOIN users u ON u.id = prt.user_id
+       WHERE prt.user_id = $1
+         AND prt.token_hash = $2
+         AND prt.used = false
+         AND prt.expires_at > NOW()
+         AND u.is_active = true`,
+      [id, tokenHash]
+    )
+
+    if (!rows.length) {
+      console.log('[RESET-PASSWORD] Token not found or expired for user:', id)
+      return res.status(400).json({ error: 'TOKEN_EXPIRED' })
+    }
+
+    const tokenRow = rows[0]
+    const passwordHash = await bcrypt.hash(newPassword, 12)
+
+    // Mark token used first
+    await pool.query('UPDATE password_reset_tokens SET used = true WHERE id = $1', [tokenRow.id])
+
+    // Update the password
+    const result = await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email',
+      [passwordHash, tokenRow.user_id]
+    )
+
+    console.log('[RESET-PASSWORD] Password updated for:', result.rows[0]?.email)
+    res.json({ message: 'Password updated successfully.' })
+  } catch (err) {
+    console.error('[RESET-PASSWORD ERROR]', err.message)
+    next(err)
+  }
 })
 
 module.exports = router
