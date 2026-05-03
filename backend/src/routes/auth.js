@@ -80,9 +80,14 @@ router.post('/login', async (req, res, next) => {
 
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res, next) => {
+  // Hard timeout — never hang longer than 10s
+  const timer = setTimeout(() => {
+    if (!res.headersSent) res.json({ message: 'If that email exists, a reset link has been sent.' })
+  }, 10000)
+
   try {
     const { email } = req.body
-    if (!email) return res.status(400).json({ error: 'VALIDATION_ERROR' })
+    if (!email) { clearTimeout(timer); return res.status(400).json({ error: 'VALIDATION_ERROR' }) }
 
     // Always respond 200 to avoid user enumeration
     const { rows } = await pool.query('SELECT id FROM users WHERE email = $1 AND is_active = true', [email])
@@ -111,10 +116,12 @@ router.post('/forgot-password', async (req, res, next) => {
       await sendPasswordResetEmail(email, resetUrl)
     }
 
-    res.json({ message: 'If that email exists, a reset link has been sent.' })
+    clearTimeout(timer)
+    if (!res.headersSent) res.json({ message: 'If that email exists, a reset link has been sent.' })
   } catch (err) {
+    clearTimeout(timer)
     console.error('[FORGOT-PASSWORD ERROR]', err.message, err.stack)
-    next(err)
+    if (!res.headersSent) next(err)
   }
 })
 

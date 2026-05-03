@@ -182,9 +182,9 @@ app.listen(PORT, async () => {
         expires_at TIMESTAMPTZ NOT NULL,
         used       BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id);
+      )
     `)
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id)`)
     console.log('✅ Auto-migrations completed')
 
     const result = await pool.query('SELECT COUNT(*) FROM products')
