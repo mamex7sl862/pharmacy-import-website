@@ -1,13 +1,19 @@
 const STEPS = [
   { key: 'AWAITING_PAYMENT',   label: 'Payment Pending',   icon: 'payments' },
-  { key: 'PAYMENT_SUBMITTED',  label: 'Proof Submitted',   icon: 'upload_file' },
-  { key: 'PAYMENT_CONFIRMED',  label: 'Payment Confirmed', icon: 'verified' },
-  { key: 'SHIPPED',            label: 'Shipped',           icon: 'local_shipping' },
+  { key: 'PAYMENT_SUBMITTED',  label: 'Under Review',      icon: 'hourglass_top' },
   { key: 'DELIVERED',          label: 'Delivered',         icon: 'check_circle' },
 ]
 
 export default function OrderProgressStepper({ status }) {
-  const currentIndex = STEPS.findIndex(s => s.key === status)
+  // Map intermediate statuses to stepper positions
+  const statusMap = {
+    'AWAITING_PAYMENT':  0,
+    'PAYMENT_SUBMITTED': 1,
+    'PAYMENT_CONFIRMED': 1,
+    'SHIPPED':           1,
+    'DELIVERED':         2,
+  }
+  const currentIndex = statusMap[status] ?? -1
   if (currentIndex === -1) return null
 
   return (

@@ -568,9 +568,11 @@ router.post('/rfqs/:id/confirm-payment', async (req, res, next) => {
     if (rows[0].status !== 'PAYMENT_SUBMITTED') return res.status(400).json({ error: 'INVALID_STATUS_TRANSITION' })
 
     await pool.query(
-      `UPDATE rfqs SET status = 'PAYMENT_CONFIRMED', payment_rejection_note = NULL, updated_at = NOW() WHERE id = $1`,
+      `UPDATE rfqs SET status = 'DELIVERED', payment_rejection_note = NULL, updated_at = NOW() WHERE id = $1`,
       [req.params.id]
     )
+    // Also close the chat thread
+    await pool.query(`UPDATE rfq_chats SET status = 'CLOSED' WHERE rfq_id = $1`, [req.params.id])
 
     sendPaymentConfirmedEmail(rows[0].customerEmail, rows[0].customerName, rows[0].rfq_number)
       .catch(e => console.error('Payment confirmed email failed:', e.message))

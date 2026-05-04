@@ -10,6 +10,11 @@ const STATUS_BADGE = {
   UNDER_REVIEW:   'bg-yellow-50 text-yellow-700 border-yellow-200',
   QUOTATION_SENT: 'bg-green-50 text-green-700 border-green-200',
   CLOSED:         'bg-gray-100 text-gray-600 border-gray-200',
+  AWAITING_PAYMENT:  'bg-amber-50 text-amber-700 border-amber-200',
+  PAYMENT_SUBMITTED: 'bg-blue-50 text-blue-700 border-blue-200',
+  PAYMENT_CONFIRMED: 'bg-teal-50 text-teal-700 border-teal-200',
+  SHIPPED:           'bg-indigo-50 text-indigo-700 border-indigo-200',
+  DELIVERED:         'bg-emerald-50 text-emerald-700 border-emerald-200',
 }
 
 export default function RFQDetails() {
@@ -198,16 +203,31 @@ export default function RFQDetails() {
             
             {/* Actions Bar */}
             <div className="flex flex-wrap items-center gap-2 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
-              {isLocked ? (
-                <div className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
-                  rfq.status === 'CLOSED'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-red-50 text-red-700 border-red-200'
-                } flex items-center gap-2`}>
+              {(isLocked || isPostAcceptance || rfq.status === 'QUOTATION_SENT') ? (
+                <div className={`px-4 py-2 rounded-lg text-sm font-semibold border flex items-center gap-2 ${
+                  rfq.status === 'DELIVERED'         ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  rfq.status === 'DECLINED'          ? 'bg-red-50 text-red-700 border-red-200' :
+                  rfq.status === 'CLOSED'            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  rfq.status === 'QUOTATION_SENT'    ? 'bg-green-50 text-green-700 border-green-200' :
+                  rfq.status === 'AWAITING_PAYMENT'  ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                  rfq.status === 'PAYMENT_SUBMITTED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                       'bg-gray-100 text-gray-600 border-gray-200'
+                }`}>
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {rfq.status === 'CLOSED' ? 'verified' : 'cancel'}
+                    {rfq.status === 'DELIVERED'         ? 'task_alt' :
+                     rfq.status === 'DECLINED'          ? 'cancel' :
+                     rfq.status === 'CLOSED'            ? 'verified' :
+                     rfq.status === 'QUOTATION_SENT'    ? 'mark_email_read' :
+                     rfq.status === 'AWAITING_PAYMENT'  ? 'payments' :
+                     rfq.status === 'PAYMENT_SUBMITTED' ? 'hourglass_top' : 'info'}
                   </span>
-                  {rfq.status === 'CLOSED' ? 'Deal Closed' : 'Declined'}
+                  {rfq.status === 'DELIVERED'         ? 'Order Delivered' :
+                   rfq.status === 'DECLINED'          ? 'Declined' :
+                   rfq.status === 'CLOSED'            ? 'Deal Closed' :
+                   rfq.status === 'QUOTATION_SENT'    ? 'Quotation Sent — Awaiting Customer' :
+                   rfq.status === 'AWAITING_PAYMENT'  ? 'Awaiting Payment' :
+                   rfq.status === 'PAYMENT_SUBMITTED' ? 'Payment Waiting Approval' :
+                   rfq.status?.replace(/_/g, ' ')}
                 </div>
               ) : (
                 <div className="flex flex-1 md:flex-none items-center gap-2">
@@ -229,7 +249,7 @@ export default function RFQDetails() {
                 <span className="hidden md:inline">PDF</span>
               </button>
               
-              {!isLocked && (
+              {!isLocked && !isPostAcceptance && rfq.status !== 'QUOTATION_SENT' && (
                 <button
                    onClick={() => {
                     if (rfq.isLegitimate !== true) {
@@ -260,7 +280,7 @@ export default function RFQDetails() {
 
           {/* Messages/Banners */}
           <div className="mt-4 space-y-2">
-            {isLocked && (
+            {isLocked && !isPostAcceptance && rfq.status !== 'QUOTATION_SENT' && (
               <div className={`p-4 rounded-xl text-sm flex items-center gap-3 ${
                 rfq.status === 'CLOSED'
                   ? 'bg-emerald-50 border border-emerald-100 text-emerald-800'
@@ -298,7 +318,13 @@ export default function RFQDetails() {
                           <img src={rfq.paymentProof.file_url} alt="Payment proof" className="w-20 h-20 object-cover rounded-lg border" />
                         </a>
                       ) : (
-                        <a href={rfq.paymentProof.file_url} target="_blank" rel="noreferrer"
+                        <a
+                          href={
+                            rfq.paymentProof.file_url?.startsWith('http')
+                              ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/proxy-document?url=${encodeURIComponent(rfq.paymentProof.file_url)}`
+                              : rfq.paymentProof.file_url
+                          }
+                          target="_blank" rel="noreferrer"
                           className="flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/20 rounded-lg text-sm font-semibold text-primary hover:bg-primary/10">
                           <span className="material-symbols-outlined text-base">picture_as_pdf</span>
                           {rfq.paymentProof.file_name}
@@ -315,8 +341,6 @@ export default function RFQDetails() {
                 {rfq.status === 'PAYMENT_CONFIRMED' && (
                   <ShipAction rfqId={id} qc={qc} />
                 )}
-              </div>
-            )}
               </div>
             )}
 
@@ -876,7 +900,7 @@ function PaymentActions({ rfqId, qc }) {
       </button>
       <button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}
         className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50">
-        {confirmMutation.isPending ? 'Confirming...' : <><span className="material-symbols-outlined text-base">verified</span>Confirm Payment</>}
+        {confirmMutation.isPending ? 'Approving...' : <><span className="material-symbols-outlined text-base">verified</span>Approve &amp; Mark Delivered</>}
       </button>
       {rejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

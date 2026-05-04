@@ -60,7 +60,7 @@ if (useCloudinary) {
     cloudinary,
     params: async (req, file) => ({
       folder: 'pharmalink/payment-proofs',
-      resource_type: 'auto',
+      resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'image',
       use_filename: false,
       unique_filename: true,
     }),

@@ -196,7 +196,7 @@ export default function AdminNotificationListener() {
                   </div>
                 </div>
                 <div className="ml-3 flex-1">
-                  <p className="text-sm font-bold text-gray-900">💳 Payment proof submitted</p>
+                  <p className="text-sm font-bold text-gray-900">💳 Payment proof submitted — waiting approval</p>
                   {paymentStats.latest && (
                     <p className="mt-1 text-sm text-gray-500">
                       From {paymentStats.latest.customerName || 'Customer'} — {paymentStats.latest.rfqNumber}

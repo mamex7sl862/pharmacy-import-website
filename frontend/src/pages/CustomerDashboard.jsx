@@ -6,14 +6,29 @@ import api from '../lib/api'
 import useAuthStore from '../store/authStore'
 
 const STATUS_BADGE = {
-  NEW:            'bg-blue-50 text-blue-700',
-  UNDER_REVIEW:   'bg-yellow-50 text-yellow-700',
-  QUOTATION_SENT: 'bg-green-50 text-green-700',
-  CLOSED:         'bg-emerald-50 text-emerald-700',
-  DECLINED:       'bg-red-50 text-red-700',
+  NEW:               'bg-blue-50 text-blue-700',
+  UNDER_REVIEW:      'bg-yellow-50 text-yellow-700',
+  QUOTATION_SENT:    'bg-green-50 text-green-700',
+  CLOSED:            'bg-emerald-50 text-emerald-700',
+  DECLINED:          'bg-red-50 text-red-700',
+  AWAITING_PAYMENT:  'bg-amber-50 text-amber-700',
+  PAYMENT_SUBMITTED: 'bg-blue-50 text-blue-700',
+  PAYMENT_CONFIRMED: 'bg-teal-50 text-teal-700',
+  SHIPPED:           'bg-indigo-50 text-indigo-700',
+  DELIVERED:         'bg-emerald-50 text-emerald-700',
 }
-const STATUS_DOT   = { NEW: 'bg-blue-500', UNDER_REVIEW: 'bg-yellow-500', QUOTATION_SENT: 'bg-green-500', CLOSED: 'bg-emerald-500', DECLINED: 'bg-red-500' }
-const STATUS_LABEL = { NEW: 'Pending', UNDER_REVIEW: 'Under Review', QUOTATION_SENT: 'Quoted', CLOSED: 'Closed', DECLINED: 'Declined' }
+const STATUS_DOT = {
+  NEW: 'bg-blue-500', UNDER_REVIEW: 'bg-yellow-500', QUOTATION_SENT: 'bg-green-500',
+  CLOSED: 'bg-emerald-500', DECLINED: 'bg-red-500', AWAITING_PAYMENT: 'bg-amber-500',
+  PAYMENT_SUBMITTED: 'bg-blue-500', PAYMENT_CONFIRMED: 'bg-teal-500',
+  SHIPPED: 'bg-indigo-500', DELIVERED: 'bg-emerald-500',
+}
+const STATUS_LABEL = {
+  NEW: 'Pending', UNDER_REVIEW: 'Under Review', QUOTATION_SENT: 'Quoted',
+  CLOSED: 'Closed', DECLINED: 'Declined', AWAITING_PAYMENT: 'Awaiting Payment',
+  PAYMENT_SUBMITTED: 'Payment Under Review', PAYMENT_CONFIRMED: 'Payment Approved',
+  SHIPPED: 'Shipped', DELIVERED: 'Delivered',
+}
 
 export default function CustomerDashboard() {
   const { user } = useAuthStore()
@@ -32,9 +47,11 @@ export default function CustomerDashboard() {
 
   const acceptMutation = useMutation({
     mutationFn: (rfqId) => api.post(`/customer/rfqs/${rfqId}/accept`),
-    onSuccess: () => {
+    onSuccess: (_, rfqId) => {
       queryClient.invalidateQueries({ queryKey: ['customer-rfqs'] })
       setAcceptingRfq(null)
+      // Navigate to RFQ detail page where payment upload is shown
+      navigate(`/portal/rfqs/${rfqId}`)
     },
   })
 
