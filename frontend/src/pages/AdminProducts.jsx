@@ -5,7 +5,7 @@ import AdminLayout from '../components/AdminLayout'
 
 const CATEGORIES = ['prescription', 'otc', 'medical-supplies', 'surgical', 'laboratory', 'personal-care']
 
-const EMPTY = { name: '', genericName: '', brand: '', category: 'prescription', packageSize: '', dosageForm: '', countryOfOrigin: '', description: '', imageUrl: '', price: '', currency: 'USD', stockQuantity: 0, isActive: true, isFeatured: false }
+const EMPTY = { name: '', genericName: '', brand: '', category: 'prescription', packageSize: '', dosageForm: '', countryOfOrigin: '', description: '', imageUrl: '', price: '', currency: 'USD', stockQuantity: 0, lowStockThreshold: 100, isActive: true, isFeatured: false }
 
 function ProductModal({ product, onClose, onSave, isSaving }) {
   const [form, setForm] = useState(product || EMPTY)
@@ -153,6 +153,16 @@ function ProductModal({ product, onClose, onSave, isSaving }) {
               />
               <p className="text-[10px] text-outline">Units available in inventory. Customers cannot request more than this.</p>
             </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-outline uppercase tracking-widest">Low Stock Alert Threshold</label>
+              <input
+                type="number" min="0" step="1"
+                value={form.lowStockThreshold} onChange={set('lowStockThreshold')}
+                placeholder="100"
+                className="input-field"
+              />
+              <p className="text-[10px] text-outline">Show a warning when available stock drops below this number.</p>
+            </div>
             <div className="col-span-2 space-y-1.5">
               <label className="text-xs font-bold text-outline uppercase tracking-widest">Description</label>
               <textarea value={form.description} onChange={set('description')} rows={3} placeholder="Short product description..." className="input-field resize-none" />
@@ -198,6 +208,7 @@ export default function AdminProducts() {
   const { data: products, isLoading } = useQuery({
     queryKey: ['admin-products'],
     queryFn: () => api.get('/admin/products').then((r) => r.data),
+    staleTime: 0,
   })
 
   const createProduct = useMutation({
@@ -227,7 +238,6 @@ export default function AdminProducts() {
       createProduct.mutate(form)
     }
   }
-
   const filtered = (products || []).filter((p) => {
     const q = search.toLowerCase()
     const matchSearch = !q || p.name.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.genericName?.toLowerCase().includes(q)
@@ -237,6 +247,54 @@ export default function AdminProducts() {
 
   return (
     <AdminLayout title="Products" subtitle="Manage your pharmaceutical product catalog.">
+
+      {/* Gap 3 — Low stock alert banner */}
+      {(() => {
+        const lowStock = (products || []).filter(p => {
+          const available = (p.stockQuantity || 0) - (p.reservedQuantity || 0)
+          return p.isActive && available <= (p.lowStockThreshold ?? 100) && available >= 0
+        })
+        if (!lowStock.length) return null
+        return (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-3 bg-amber-500">
+              <span className="material-symbols-outlined text-white text-xl" style={{fontVariationSettings:"'FILL' 1"}}>warning</span>
+              <p className="font-bold text-white text-sm flex-1">
+                {lowStock.length} product{lowStock.length > 1 ? 's' : ''} running low on stock
+              </p>
+            </div>
+            <div className="divide-y divide-amber-100">
+              {lowStock.slice(0, 5).map(p => {
+                const available = (p.stockQuantity || 0) - (p.reservedQuantity || 0)
+                return (
+                  <div key={p.id} className="flex items-center justify-between px-5 py-2.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="material-symbols-outlined text-amber-600 text-base">medication</span>
+                      <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {(p.reservedQuantity || 0) > 0 && (
+                        <span className="text-xs text-blue-600 font-medium">{p.reservedQuantity} reserved</span>
+                      )}
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${available <= 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
+                        {available <= 0 ? 'Out of stock' : `${available} left`}
+                      </span>
+                      <button onClick={() => setModal(p)} className="text-xs font-bold text-amber-700 hover:underline">
+                        Restock
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              {lowStock.length > 5 && (
+                <div className="px-5 py-2 text-xs text-amber-700 font-medium">
+                  + {lowStock.length - 5} more products need attention
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -332,10 +390,33 @@ export default function AdminProducts() {
                     {product.currency || 'USD'} {parseFloat(product.price).toFixed(2)}
                   </p>
                 )}
-                <div className="flex items-center gap-2 mb-4">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${product.stockQuantity > 10 ? 'bg-green-50 text-green-700' : product.stockQuantity > 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
-                    {product.stockQuantity > 0 ? `${product.stockQuantity} in stock` : 'Out of stock'}
-                  </span>
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  {/* Gap 3: low-stock badge */}
+                  {(() => {
+                    const available = (product.stockQuantity || 0) - (product.reservedQuantity || 0)
+                    const threshold = product.lowStockThreshold ?? 100
+                    if (available <= 0) return (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600">
+                        Out of stock
+                      </span>
+                    )
+                    if (available <= threshold) return (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">warning</span>
+                        Low stock — {available} avail.
+                      </span>
+                    )
+                    return (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700">
+                        {available} available
+                      </span>
+                    )
+                  })()}
+                  {(product.reservedQuantity || 0) > 0 && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
+                      {product.reservedQuantity} reserved
+                    </span>
+                  )}
                 </div>
 
                 {/* Actions */}

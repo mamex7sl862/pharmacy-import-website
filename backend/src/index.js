@@ -256,6 +256,13 @@ app.listen(PORT, async () => {
       )
     `)
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_rfq_chat_messages_chat ON rfq_chat_messages(rfq_chat_id)`)
+
+    // Stock management v3 — soft reservation + low-stock threshold
+    await pool.query(`
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS reserved_quantity   INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER NOT NULL DEFAULT 100;
+    `)
+
     console.log('✅ Auto-migrations completed')
 
     const result = await pool.query('SELECT COUNT(*) FROM products')

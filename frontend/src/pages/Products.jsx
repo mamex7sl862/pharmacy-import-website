@@ -65,7 +65,7 @@ function Toast({ message, onDone }) {
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, isAdded, onAdd }) {
   const [imgError, setImgError] = useState(false)
-  const outOfStock = product.inStock === false
+  const outOfStock = product.stockStatus === 'unavailable' || product.inStock === false
   const cfg        = CATEGORY_CONFIG[product.category] || CATEGORY_CONFIG['prescription']
 
   return (
@@ -95,6 +95,11 @@ function ProductCard({ product, isAdded, onAdd }) {
         {outOfStock && (
           <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600">
             Out of Stock
+          </span>
+        )}
+        {!outOfStock && product.stockStatus === 'limited' && (
+          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700">
+            Limited Stock
           </span>
         )}
       </div>
@@ -169,6 +174,7 @@ export default function Products() {
     queryKey: ['products', search, category],
     queryFn: () => api.get('/products', { params: { text: search, category, page: 1, limit: 24 } }).then(r => r.data),
     keepPreviousData: true,
+    staleTime: 0,
     retry: 1,
   })
 

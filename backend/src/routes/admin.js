@@ -171,26 +171,88 @@ router.get('/rfqs/:id', async (req, res, next) => {
 
 // ── DELETE /api/admin/rfqs/:id ───────────────────────────────────────────────
 router.delete('/rfqs/:id', async (req, res, next) => {
+  const client = await pool.connect()
   try {
-    const { rows } = await pool.query('SELECT id, rfq_number FROM rfqs WHERE id = $1', [req.params.id])
+    const { rows } = await client.query('SELECT id, rfq_number, status FROM rfqs WHERE id = $1', [req.params.id])
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
-    // Cascade deletes rfq_items and rfq_attachments automatically
-    await pool.query('DELETE FROM rfqs WHERE id = $1', [req.params.id])
+
+    await client.query('BEGIN')
+
+    // Gap 2: If RFQ was in post-acceptance (stock was reserved), release the reservation
+    const POST_ACCEPTANCE_STATUSES = ['AWAITING_PAYMENT', 'PAYMENT_SUBMITTED', 'PAYMENT_CONFIRMED', 'SHIPPED']
+    if (POST_ACCEPTANCE_STATUSES.includes(rows[0].status)) {
+      const { rows: items } = await client.query(
+        `SELECT ri.quantity, COALESCE(ri.product_id, p.id) AS product_id
+         FROM rfq_items ri
+         LEFT JOIN products p ON p.name = ri.product_name AND p.is_active = true
+         WHERE ri.rfq_id = $1 AND (ri.product_id IS NOT NULL OR p.id IS NOT NULL)`,
+        [req.params.id]
+      )
+      for (const item of items) {
+        await client.query(
+          `UPDATE products
+           SET reserved_quantity = GREATEST(0, reserved_quantity - $1), updated_at = NOW()
+           WHERE id = $2`,
+          [item.quantity, item.product_id]
+        )
+      }
+    }
+
+    await client.query('DELETE FROM rfqs WHERE id = $1', [req.params.id])
+    await client.query('COMMIT')
     res.json({ success: true, deleted: rows[0].rfq_number })
-  } catch (err) { next(err) }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    next(err)
+  } finally {
+    client.release()
+  }
 })
 
 // ── POST /api/admin/rfqs/bulk-delete ──────────────────────────────────────────
 router.post('/rfqs/bulk-delete', async (req, res, next) => {
+  const client = await pool.connect()
   try {
     const { ids } = req.body
     if (!Array.isArray(ids) || !ids.length) {
       return res.status(400).json({ error: 'INVALID_IDS' })
     }
-    // Cascade deletes rfq_items and rfq_attachments automatically in SQL
-    await pool.query('DELETE FROM rfqs WHERE id = ANY($1)', [ids])
+
+    await client.query('BEGIN')
+
+    // Gap 2: Release reservations for any post-acceptance RFQs being deleted
+    const POST_ACCEPTANCE_STATUSES = ['AWAITING_PAYMENT', 'PAYMENT_SUBMITTED', 'PAYMENT_CONFIRMED', 'SHIPPED']
+    const { rows: postAcceptanceRfqs } = await client.query(
+      `SELECT id FROM rfqs WHERE id = ANY($1) AND status = ANY($2)`,
+      [ids, POST_ACCEPTANCE_STATUSES]
+    )
+    for (const rfq of postAcceptanceRfqs) {
+      const { rows: items } = await client.query(
+        `SELECT ri.quantity, COALESCE(ri.product_id, p.id) AS product_id
+         FROM rfq_items ri
+         LEFT JOIN products p ON p.name = ri.product_name AND p.is_active = true
+         WHERE ri.rfq_id = $1 AND (ri.product_id IS NOT NULL OR p.id IS NOT NULL)`,
+        [rfq.id]
+      )
+      for (const item of items) {
+        await client.query(
+          `UPDATE products
+           SET reserved_quantity = GREATEST(0, reserved_quantity - $1), updated_at = NOW()
+           WHERE id = $2`,
+          [item.quantity, item.product_id]
+        )
+      }
+    }
+
+    await client.query('DELETE FROM rfqs WHERE id = ANY($1)', [ids])
+    await client.query('COMMIT')
     res.json({ success: true, count: ids.length })
-  } catch (err) { next(err) }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    next(err)
+  } finally {
+    client.release()
+  }
 })
 
 // ── PATCH /api/admin/rfqs/:id/status ─────────────────────────────────────────
@@ -419,6 +481,8 @@ router.get('/products', async (req, res, next) => {
       `SELECT id, name, generic_name AS "genericName", brand, category,
               package_size AS "packageSize", description, image_url AS "imageUrl",
               price, currency, stock_quantity AS "stockQuantity",
+              reserved_quantity AS "reservedQuantity",
+              low_stock_threshold AS "lowStockThreshold",
               is_active AS "isActive", is_featured AS "isFeatured",
               dosage_form AS "dosageForm", country_of_origin AS "countryOfOrigin"
        FROM products ORDER BY name ASC`
@@ -429,11 +493,11 @@ router.get('/products', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, genericName, brand, category, packageSize, description, imageUrl, isFeatured, price, currency, stockQuantity, dosageForm, countryOfOrigin } = req.body
+    const { name, genericName, brand, category, packageSize, description, imageUrl, isFeatured, price, currency, stockQuantity, lowStockThreshold, dosageForm, countryOfOrigin } = req.body
     const { rows } = await pool.query(
-      `INSERT INTO products (name, generic_name, brand, category, package_size, description, image_url, is_featured, price, currency, stock_quantity, dosage_form, country_of_origin)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [name, genericName, brand, category, packageSize, description, imageUrl, isFeatured || false, price || null, currency || 'USD', stockQuantity || 0, dosageForm || null, countryOfOrigin || null]
+      `INSERT INTO products (name, generic_name, brand, category, package_size, description, image_url, is_featured, price, currency, stock_quantity, low_stock_threshold, dosage_form, country_of_origin)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [name, genericName, brand, category, packageSize, description, imageUrl, isFeatured || false, price || null, currency || 'USD', stockQuantity || 0, lowStockThreshold ?? 100, dosageForm || null, countryOfOrigin || null]
     )
     res.status(201).json(rows[0])
   } catch (err) { next(err) }
@@ -441,12 +505,12 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const { name, genericName, brand, category, packageSize, description, imageUrl, isActive, isFeatured, price, currency, stockQuantity, dosageForm, countryOfOrigin } = req.body
+    const { name, genericName, brand, category, packageSize, description, imageUrl, isActive, isFeatured, price, currency, stockQuantity, lowStockThreshold, dosageForm, countryOfOrigin } = req.body
     await pool.query(
       `UPDATE products SET name=$1, generic_name=$2, brand=$3, category=$4, package_size=$5,
        description=$6, image_url=$7, is_active=$8, is_featured=$9, price=$10, currency=$11,
-       stock_quantity=$12, updated_at=NOW(), dosage_form=$14, country_of_origin=$15 WHERE id=$13`,
-      [name, genericName, brand, category, packageSize, description, imageUrl, isActive, isFeatured, price || null, currency || 'USD', stockQuantity || 0, req.params.id, dosageForm || null, countryOfOrigin || null]
+       stock_quantity=$12, low_stock_threshold=$13, updated_at=NOW(), dosage_form=$15, country_of_origin=$16 WHERE id=$14`,
+      [name, genericName, brand, category, packageSize, description, imageUrl, isActive, isFeatured, price || null, currency || 'USD', stockQuantity || 0, lowStockThreshold ?? 100, req.params.id, dosageForm || null, countryOfOrigin || null]
     )
     res.json({ success: true })
   } catch (err) { next(err) }

@@ -10,6 +10,28 @@ router.use(verifyToken)
 // Stock reserve — minimum stock that must remain after any order
 const STOCK_RESERVE = 50
 
+// Helper: release reserved stock for all linked items in an RFQ
+async function releaseReservation(client, rfqId) {
+  const { rows: items } = await client.query(
+    `SELECT ri.quantity,
+            COALESCE(ri.product_id, p.id) AS product_id
+     FROM rfq_items ri
+     LEFT JOIN products p ON p.name = ri.product_name AND p.is_active = true
+     WHERE ri.rfq_id = $1
+       AND (ri.product_id IS NOT NULL OR p.id IS NOT NULL)`,
+    [rfqId]
+  )
+  for (const item of items) {
+    await client.query(
+      `UPDATE products
+       SET reserved_quantity = GREATEST(0, reserved_quantity - $1),
+           updated_at = NOW()
+       WHERE id = $2`,
+      [item.quantity, item.product_id]
+    )
+  }
+}
+
 // GET /api/customer/profile
 router.get('/profile', async (req, res, next) => {
   try {
@@ -133,39 +155,46 @@ router.post('/rfqs/:id/accept', async (req, res, next) => {
       return res.status(400).json({ error: 'Only a QUOTATION_SENT RFQ can be accepted' })
     }
 
-    // Get all items that are linked to a product (so we can deduct stock)
+    // Get all items that are linked to a product (so we can reserve stock)
+    // Try direct product_id first, fall back to name match
     const { rows: items } = await client.query(
-      `SELECT product_id, quantity FROM rfq_items
-       WHERE rfq_id = $1 AND product_id IS NOT NULL`,
+      `SELECT ri.quantity,
+              COALESCE(ri.product_id, p.id) AS product_id
+       FROM rfq_items ri
+       LEFT JOIN products p ON p.name = ri.product_name AND p.is_active = true
+       WHERE ri.rfq_id = $1
+         AND (ri.product_id IS NOT NULL OR p.id IS NOT NULL)`,
       [rfq.id]
     )
 
     // Run everything in a single transaction
     await client.query('BEGIN')
 
-    // 1. Deduct stock for each linked product — never go below STOCK_RESERVE
+    // 1. Reserve stock for each linked product (soft reservation — don't deduct yet)
+    //    Available = stock_quantity - reserved_quantity - STOCK_RESERVE
     for (const item of items) {
-      // Check available stock (above reserve) before deducting
       const { rows: stockRows } = await client.query(
-        'SELECT stock_quantity FROM products WHERE id = $1',
+        'SELECT stock_quantity, reserved_quantity FROM products WHERE id = $1',
         [item.product_id]
       )
       if (stockRows.length) {
-        const available = Math.max(0, stockRows[0].stock_quantity - STOCK_RESERVE)
+        const { stock_quantity, reserved_quantity } = stockRows[0]
+        const available = Math.max(0, stock_quantity - reserved_quantity - STOCK_RESERVE)
         if (item.quantity > available) {
           await client.query('ROLLBACK')
           return res.status(400).json({
             error: 'INSUFFICIENT_STOCK',
-            message: `Insufficient available stock for one or more items. Only ${available} units available (${STOCK_RESERVE} units reserved).`,
+            message: `Insufficient available stock for one or more items. Only ${available} units available.`,
           })
         }
       }
+      // Add to reservation — actual deduction happens at delivery confirmation
       await client.query(
         `UPDATE products
-         SET stock_quantity = GREATEST($2, stock_quantity - $1),
-             updated_at     = NOW()
-         WHERE id = $3`,
-        [item.quantity, STOCK_RESERVE, item.product_id]
+         SET reserved_quantity = reserved_quantity + $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+        [item.quantity, item.product_id]
       )
     }
 
@@ -262,19 +291,59 @@ router.post('/rfqs/:id/payment-proof', (req, res, next) => {
 
 // POST /api/customer/rfqs/:id/confirm-delivery
 router.post('/rfqs/:id/confirm-delivery', async (req, res, next) => {
+  const client = await pool.connect()
   try {
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       `SELECT id, status FROM rfqs WHERE id = $1 AND customer_id = $2`,
       [req.params.id, req.user.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
     if (rows[0].status !== 'SHIPPED') return res.status(400).json({ error: 'INVALID_STATUS_TRANSITION' })
 
-    await pool.query(`UPDATE rfqs SET status = 'DELIVERED', updated_at = NOW() WHERE id = $1`, [rows[0].id])
-    await pool.query(`UPDATE rfq_chats SET status = 'CLOSED' WHERE rfq_id = $1`, [rows[0].id])
+    await client.query('BEGIN')
 
+    // Fetch all items — try direct product_id first, then fall back to name match
+    const { rows: items } = await client.query(
+      `SELECT ri.quantity,
+              COALESCE(ri.product_id, p.id) AS product_id
+       FROM rfq_items ri
+       LEFT JOIN products p ON p.name = ri.product_name AND p.is_active = true
+       WHERE ri.rfq_id = $1
+         AND (ri.product_id IS NOT NULL OR p.id IS NOT NULL)`,
+      [req.params.id]
+    )
+
+    console.log(`[confirm-delivery] RFQ ${req.params.id}: ${items.length} linked items to deduct`)
+
+    for (const item of items) {
+      const result = await client.query(
+        `UPDATE products
+         SET stock_quantity    = GREATEST(0, stock_quantity - $1),
+             reserved_quantity = GREATEST(0, reserved_quantity - $1),
+             updated_at        = NOW()
+         WHERE id = $2
+         RETURNING name, stock_quantity, reserved_quantity`,
+        [item.quantity, item.product_id]
+      )
+      if (result.rows.length) {
+        console.log(`[confirm-delivery] Deducted ${item.quantity} from "${result.rows[0].name}" → stock: ${result.rows[0].stock_quantity}, reserved: ${result.rows[0].reserved_quantity}`)
+      }
+    }
+
+    await client.query(
+      `UPDATE rfqs SET status = 'DELIVERED', updated_at = NOW() WHERE id = $1`,
+      [rows[0].id]
+    )
+    await client.query(`UPDATE rfq_chats SET status = 'CLOSED' WHERE rfq_id = $1`, [rows[0].id])
+
+    await client.query('COMMIT')
     res.json({ success: true, message: 'Delivery confirmed. Thank you for your order!' })
-  } catch (err) { next(err) }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    next(err)
+  } finally {
+    client.release()
+  }
 })
 
 // GET /api/customer/rfqs/:id/chat

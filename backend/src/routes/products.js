@@ -6,6 +6,18 @@ const VALID_CATEGORIES = ['prescription', 'otc', 'medical-supplies', 'surgical',
 // Units always kept in reserve — not available for customer ordering
 const STOCK_RESERVE = 50
 
+// Helper: compute available quantity (excludes reserved and safety buffer)
+// stockStatus: 'available' | 'limited' | 'unavailable'
+function stockStatusExpr(reserve) {
+  return `
+    CASE
+      WHEN (p.stock_quantity - COALESCE(p.reserved_quantity,0) - ${reserve}) > 50 THEN 'available'
+      WHEN (p.stock_quantity - COALESCE(p.reserved_quantity,0) - ${reserve}) > 0  THEN 'limited'
+      ELSE 'unavailable'
+    END
+  `
+}
+
 // GET /api/products
 router.get('/', async (req, res, next) => {
   try {
@@ -41,7 +53,8 @@ router.get('/', async (req, res, next) => {
       `SELECT p.id, p.name, p.generic_name AS "genericName", p.brand, p.category,
               p.package_size AS "packageSize", p.description, p.image_url AS "imageUrl",
               p.price, p.currency,
-              CASE WHEN p.stock_quantity > ${STOCK_RESERVE} THEN true ELSE false END AS "inStock",
+              ${stockStatusExpr(STOCK_RESERVE)} AS "stockStatus",
+              CASE WHEN (p.stock_quantity - COALESCE(p.reserved_quantity,0)) > ${STOCK_RESERVE} THEN true ELSE false END AS "inStock",
               p.is_featured AS "isFeatured",
               p.dosage_form AS "dosageForm", p.country_of_origin AS "countryOfOrigin"
        FROM products p WHERE ${where} ORDER BY ${orderBy}
@@ -60,7 +73,8 @@ router.get('/featured', async (req, res, next) => {
       `SELECT id, name, generic_name AS "genericName", brand, category,
               package_size AS "packageSize", description, image_url AS "imageUrl",
               price, currency,
-              CASE WHEN stock_quantity > ${STOCK_RESERVE} THEN true ELSE false END AS "inStock",
+              ${stockStatusExpr(STOCK_RESERVE).replace(/p\./g, '')} AS "stockStatus",
+              CASE WHEN (stock_quantity - COALESCE(reserved_quantity,0)) > ${STOCK_RESERVE} THEN true ELSE false END AS "inStock",
               dosage_form AS "dosageForm", country_of_origin AS "countryOfOrigin"
        FROM products WHERE is_active = true AND is_featured = true
        ORDER BY name ASC LIMIT 8`
@@ -76,7 +90,8 @@ router.get('/:id', async (req, res, next) => {
       `SELECT id, name, generic_name AS "genericName", brand, category,
               package_size AS "packageSize", description, image_url AS "imageUrl",
               price, currency,
-              CASE WHEN stock_quantity > ${STOCK_RESERVE} THEN true ELSE false END AS "inStock",
+              ${stockStatusExpr(STOCK_RESERVE).replace(/p\./g, '')} AS "stockStatus",
+              CASE WHEN (stock_quantity - COALESCE(reserved_quantity,0)) > ${STOCK_RESERVE} THEN true ELSE false END AS "inStock",
               dosage_form AS "dosageForm", country_of_origin AS "countryOfOrigin"
        FROM products WHERE id = $1 AND is_active = true`,
       [req.params.id]
