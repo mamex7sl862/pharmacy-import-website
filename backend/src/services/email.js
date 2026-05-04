@@ -71,6 +71,28 @@ async function sendCustomerConfirmation(email, rfqNumber, customerName) {
   }
 }
 
+async function sendAdminPaymentNotification(rfqNumber, customerName, companyName) {
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (!adminEmail) { console.log(`[EMAIL SKIPPED] No ADMIN_EMAIL set`); return }
+  try {
+    await sendMail({
+      to: adminEmail,
+      subject: `Payment Proof Submitted — ${rfqNumber}`,
+      html: `
+        <h2>Payment Proof Received</h2>
+        <p><strong>RFQ Number:</strong> ${rfqNumber}</p>
+        <p><strong>Customer:</strong> ${customerName}${companyName ? ` (${companyName})` : ''}</p>
+        <p>The customer has uploaded their payment proof and is awaiting your approval.</p>
+        <p>Log in to the admin panel to review and confirm the payment.</p>
+        <br/><p>PharmaLink Wholesale Team</p>
+      `,
+    })
+    console.log(`[EMAIL] Admin payment notification sent for ${rfqNumber}`)
+  } catch (err) {
+    console.error('[EMAIL ERROR] Admin payment notification:', err.message)
+  }
+}
+
 async function sendAdminNotification(rfqNumber, customerName, companyName, itemCount) {
   const adminEmail = process.env.ADMIN_EMAIL
   if (!adminEmail) { console.log(`[EMAIL SKIPPED] No ADMIN_EMAIL set`); return }
@@ -247,6 +269,7 @@ async function sendPasswordResetEmail(email, resetUrl) {
 module.exports = {
   sendCustomerConfirmation,
   sendAdminNotification,
+  sendAdminPaymentNotification,
   sendQuotationEmail,
   sendContactAutoReply,
   sendAwaitingPaymentEmail,

@@ -101,6 +101,8 @@ export default function AdminDashboard() {
   const { data: rfqData } = useQuery({
     queryKey: ['admin-rfqs-dash'],
     queryFn: () => api.get('/admin/rfqs', { params: { page: 1, limit: 100 } }).then((r) => r.data),
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
   })
 
   const { data: productData } = useQuery({
@@ -113,6 +115,13 @@ export default function AdminDashboard() {
     queryFn: () => api.get('/admin/testimonials').then((r) => r.data),
   })
 
+  // Pending payment proofs — polled every 30s so the dashboard stays fresh
+  const { data: pendingPaymentsData } = useQuery({
+    queryKey: ['admin-pending-payments-dash'],
+    queryFn: () => api.get('/admin/rfqs', { params: { status: 'PAYMENT_SUBMITTED', limit: 5 } }).then((r) => r.data),
+    refetchInterval: 30000,
+  })
+
   const items = rfqData?.items || []
   const total = rfqData?.totalCount || 0
   const newCount    = items.filter((r) => r.status === 'NEW').length
@@ -122,6 +131,9 @@ export default function AdminDashboard() {
   const productCount = productData?.length || 0
   const activeProducts = productData?.filter((p) => p.isActive).length || 0
   const testimonialCount = testimonialData?.length || 0
+
+  const pendingPayments = pendingPaymentsData?.items || []
+  const pendingPaymentCount = pendingPaymentsData?.totalCount || 0
 
   // Group RFQs by day for the last 7 days
   const last7 = Array.from({ length: 7 }, (_, i) => {
@@ -161,15 +173,103 @@ export default function AdminDashboard() {
   return (
     <AdminLayout title="Dashboard" subtitle="Real-time overview of RFQ activity, products, and platform health.">
 
+      {/* ── Needs Attention Banner ─────────────────────────────────────────── */}
+      {pendingPaymentCount > 0 && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden shadow-sm">
+          {/* Header row */}
+          <div className="flex items-center justify-between px-5 py-3.5 bg-amber-500">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
+              </span>
+              <p className="font-bold text-white text-sm">
+                {pendingPaymentCount === 1
+                  ? '1 payment proof is waiting for your approval'
+                  : `${pendingPaymentCount} payment proofs are waiting for your approval`}
+              </p>
+            </div>
+            <Link
+              to="/admin/rfqs?status=PAYMENT_SUBMITTED"
+              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-1.5 bg-white text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-50 transition-colors shadow-sm"
+            >
+              Review All
+              <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </Link>
+          </div>
+
+          {/* Payment rows */}
+          <div className="divide-y divide-amber-100">
+            {pendingPayments.slice(0, 3).map((rfq) => (
+              <Link
+                key={rfq.id}
+                to={`/admin/rfqs/${rfq.id}`}
+                className="flex items-center gap-4 px-5 py-3 hover:bg-amber-100/60 transition-colors group"
+              >
+                {/* Avatar */}
+                <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-amber-800 font-bold text-sm flex-shrink-0">
+                  {(rfq.customerName || rfq.guestName || '?').charAt(0).toUpperCase()}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-900 truncate">
+                    {rfq.customerName || rfq.guestName || 'Customer'}
+                    <span className="ml-2 font-mono text-xs text-amber-600">{rfq.rfqNumber}</span>
+                  </p>
+                  <p className="text-xs text-amber-600">{rfq.itemCount} items · submitted {new Date(rfq.submittedAt).toLocaleDateString()}</p>
+                </div>
+                {/* CTA */}
+                <span className="flex-shrink-0 flex items-center gap-1 text-xs font-bold text-amber-700 group-hover:text-amber-900 transition-colors">
+                  <span className="material-symbols-outlined text-sm">payments</span>
+                  Review Proof
+                  <span className="material-symbols-outlined text-sm">chevron_right</span>
+                </span>
+              </Link>
+            ))}
+            {pendingPaymentCount > 3 && (
+              <div className="px-5 py-2.5 text-center">
+                <Link to="/admin/rfqs?status=PAYMENT_SUBMITTED" className="text-xs font-bold text-amber-700 hover:underline">
+                  + {pendingPaymentCount - 3} more pending — view all
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── KPI Stats ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
-        <StatCard icon="description"    label="Total RFQs"       value={total}            color="bg-blue-50 text-blue-600"     />
-        <StatCard icon="fiber_new"      label="New"              value={newCount}         color="bg-blue-50 text-blue-600"     />
-        <StatCard icon="pending_actions"label="Under Review"     value={reviewCount}      color="bg-amber-50 text-amber-600"   />
-        <StatCard icon="mark_email_read"label="Quotation Sent"   value={sentCount}        color="bg-green-50 text-green-600"   />
-        <StatCard icon="task_alt"       label="Closed"           value={closedCount}      color="bg-slate-50 text-slate-500"   />
-        <StatCard icon="inventory_2"    label="Products"         value={activeProducts}   color="bg-purple-50 text-purple-600" />
-        <StatCard icon="format_quote"   label="Testimonials"     value={testimonialCount} color="bg-teal-50 text-teal-600"     />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-4 mb-8">
+        <StatCard icon="description"    label="Total RFQs"       value={total}               color="bg-blue-50 text-blue-600"     />
+        <StatCard icon="fiber_new"      label="New"              value={newCount}            color="bg-blue-50 text-blue-600"     />
+        <StatCard icon="pending_actions"label="Under Review"     value={reviewCount}         color="bg-amber-50 text-amber-600"   />
+        <StatCard icon="mark_email_read"label="Quotation Sent"   value={sentCount}           color="bg-green-50 text-green-600"   />
+        <StatCard icon="task_alt"       label="Closed"           value={closedCount}         color="bg-slate-50 text-slate-500"   />
+        <div className={`bg-surface-container-lowest p-5 rounded-xl shadow-sm hover:shadow-md transition-all ${pendingPaymentCount > 0 ? 'ring-2 ring-amber-400' : ''}`}>
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-50 text-amber-600 relative">
+              <span className="material-symbols-outlined text-lg">payments</span>
+              {pendingPaymentCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-[9px] font-black text-white">{pendingPaymentCount}</span>
+                </span>
+              )}
+            </div>
+            {pendingPaymentCount > 0 && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 animate-pulse">
+                Action
+              </span>
+            )}
+          </div>
+          <p className="text-3xl font-headline font-extrabold text-on-surface">{pendingPaymentCount}</p>
+          <p className="text-xs text-on-surface-variant mt-0.5">Awaiting Payment Review</p>
+          {pendingPaymentCount > 0 && (
+            <Link to="/admin/rfqs?status=PAYMENT_SUBMITTED" className="mt-2 text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-0.5">
+              Review now <span className="material-symbols-outlined text-xs">arrow_forward</span>
+            </Link>
+          )}
+        </div>
+        <StatCard icon="inventory_2"    label="Products"         value={activeProducts}      color="bg-purple-50 text-purple-600" />
+        <StatCard icon="format_quote"   label="Testimonials"     value={testimonialCount}    color="bg-teal-50 text-teal-600"     />
       </div>
 
       {/* ── Charts row ────────────────────────────────────────────────────── */}
@@ -335,14 +435,22 @@ export default function AdminDashboard() {
             <h3 className="font-headline font-bold text-base text-on-surface mb-3">Quick Actions</h3>
             <div className="space-y-1">
               {[
-                { to: '/admin/rfqs',      icon: 'request_quote', label: 'All RFQs',        badge: total,          badgeColor: 'bg-primary' },
-                { to: '/admin/products',  icon: 'inventory_2',   label: 'Products',         badge: activeProducts, badgeColor: 'bg-purple-500' },
-                { to: '/admin/content',   icon: 'edit_note',     label: 'Content',          badge: testimonialCount, badgeColor: 'bg-teal-500' },
+                { to: '/admin/rfqs',                          icon: 'request_quote', label: 'All RFQs',              badge: total,               badgeColor: 'bg-primary' },
+                { to: '/admin/rfqs?status=PAYMENT_SUBMITTED', icon: 'payments',      label: 'Pending Payments',      badge: pendingPaymentCount, badgeColor: pendingPaymentCount > 0 ? 'bg-red-500' : 'bg-gray-400', urgent: pendingPaymentCount > 0 },
+                { to: '/admin/products',                      icon: 'inventory_2',   label: 'Products',              badge: activeProducts,      badgeColor: 'bg-purple-500' },
+                { to: '/admin/content',                       icon: 'edit_note',     label: 'Content',               badge: testimonialCount,    badgeColor: 'bg-teal-500' },
               ].map((item) => (
-                <Link key={item.to} to={item.to} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container-low transition-colors group">
+                <Link key={item.to} to={item.to}
+                  className={`flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container-low transition-colors group ${item.urgent ? 'bg-amber-50 hover:bg-amber-100' : ''}`}>
                   <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-primary text-base">{item.icon}</span>
-                    <span className="text-sm font-medium text-on-surface group-hover:text-primary transition-colors">{item.label}</span>
+                    <span className={`material-symbols-outlined text-base ${item.urgent ? 'text-amber-600' : 'text-primary'}`}>{item.icon}</span>
+                    <span className={`text-sm font-medium transition-colors ${item.urgent ? 'text-amber-800 font-bold' : 'text-on-surface group-hover:text-primary'}`}>{item.label}</span>
+                    {item.urgent && (
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                      </span>
+                    )}
                   </div>
                   <span className={`text-[10px] font-bold text-white px-2 py-0.5 rounded-full ${item.badgeColor}`}>{item.badge}</span>
                 </Link>

@@ -1,6 +1,6 @@
 ﻿import { useParams, Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import api from "../lib/api"
 import OrderProgressStepper from "../components/OrderProgressStepper"
 import PaymentProofUpload from "../components/PaymentProofUpload"
@@ -27,7 +27,7 @@ export default function CustomerRFQDetail() {
   const queryClient = useQueryClient()
   const [showAcceptModal, setShowAcceptModal] = useState(false)
   const [showDeclineModal, setShowDeclineModal] = useState(false)
-  const [acceptedAndPaying, setAcceptedAndPaying] = useState(false)
+  const paymentRef = useRef(null)
 
   const { data: rfq, isLoading } = useQuery({
     queryKey: ["customer-rfq", id],
@@ -39,8 +39,11 @@ export default function CustomerRFQDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer-rfq", id] })
       queryClient.invalidateQueries({ queryKey: ["customer-rfqs"] })
-      // Keep modal open, switch to payment upload step
-      setAcceptedAndPaying(true)
+      setShowAcceptModal(false)
+      // Scroll to payment section after a short delay for the DOM to update
+      setTimeout(() => {
+        paymentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 300)
     },
   })
 
@@ -82,6 +85,24 @@ export default function CustomerRFQDetail() {
   return (
     <div className="min-h-screen bg-surface py-12 px-4">
       <div className="max-w-3xl mx-auto">
+
+        {/* ── Action-required banner ── */}
+        {rfq.status === "AWAITING_PAYMENT" && (
+          <div className="mb-6 flex items-center gap-3 px-5 py-3.5 bg-amber-500 text-white rounded-2xl shadow-lg shadow-amber-200">
+            <span className="material-symbols-outlined text-2xl flex-shrink-0" style={{fontVariationSettings:"'FILL' 1"}}>notifications_active</span>
+            <div className="flex-1">
+              <p className="font-bold text-sm">Action Required — Upload Payment Proof</p>
+              <p className="text-xs text-amber-100">Your quotation is accepted. Complete your payment to proceed.</p>
+            </div>
+            <button
+              onClick={() => paymentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="flex-shrink-0 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition-colors">
+              Go to Payment ↓
+            </button>
+          </div>
+        )}
+
+        {/* ── Page header ── */}
         <div className="flex items-center gap-4 mb-8">
           <Link to="/portal" className="p-2 hover:bg-surface-container rounded-full transition-colors text-primary">
             <span className="material-symbols-outlined">arrow_back</span>
@@ -90,7 +111,7 @@ export default function CustomerRFQDetail() {
             <p className="text-xs text-outline font-mono">{rfq.rfq_number}</p>
             <h1 className="font-headline font-extrabold text-2xl text-on-surface">RFQ Details</h1>
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-3 flex-wrap justify-end">
             <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${STATUS_BADGE[rfq.status] || "bg-gray-100 text-gray-700"}`}>
               {STATUS_LABEL[rfq.status] || rfq.status}
             </span>
@@ -218,7 +239,7 @@ export default function CustomerRFQDetail() {
               <div className="flex items-start gap-4">
                 <span className="material-symbols-outlined text-green-600 text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>mark_email_read</span>
                 <div className="flex-1">
-                  <h3 className="font-headline font-bold text-green-800 mb-1">Quotation Ready  Review & Respond</h3>
+                  <h3 className="font-headline font-bold text-green-800 mb-1">Quotation Ready — Review &amp; Respond</h3>
                   <p className="text-sm text-green-700 mb-4">Download the PDF to review pricing and terms, then Accept or Decline.</p>
                   <div className="flex flex-wrap gap-3">
                     <button onClick={() => downloadPDF(`${rfq.rfq_number}-quotation.pdf`)}
@@ -239,29 +260,94 @@ export default function CustomerRFQDetail() {
             </div>
           )}
 
-          {rfq.status === "AWAITING_PAYMENT" && (
-            <div id="payment-section" className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-              <h3 className="font-headline font-bold text-amber-800 mb-1 flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-600">payments</span>Payment Required
-              </h3>
-              <p className="text-sm text-amber-700 mb-4">Please upload your payment proof (bank transfer receipt or screenshot) to proceed with your order.</p>
-              <PaymentProofUpload rfqId={id} rejectionNote={rfq.payment_rejection_note} existingProof={null}
-                onUploaded={() => queryClient.invalidateQueries({ queryKey: ["customer-rfq", id] })} />
-            </div>
-          )}
+          {/* ══ PAYMENT SECTION — anchored, scrolled to after accept ══ */}
+          {(rfq.status === "AWAITING_PAYMENT" || rfq.status === "PAYMENT_SUBMITTED") && (
+            <div ref={paymentRef} className="rounded-2xl overflow-hidden shadow-md border border-amber-200 scroll-mt-6">
 
-          {rfq.status === "PAYMENT_SUBMITTED" && (
-            <div id="payment-section" className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <span className="material-symbols-outlined text-blue-600 text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>hourglass_top</span>
-                <div>
-                  <h3 className="font-headline font-bold text-blue-800">Payment Under Review</h3>
-                  <p className="text-sm text-blue-700 mt-1">Our team is reviewing your payment proof. You will be notified once it is approved.</p>
+              {/* Header bar */}
+              <div className={`px-6 py-4 flex items-center gap-3 ${rfq.status === "PAYMENT_SUBMITTED" ? "bg-blue-600" : "bg-amber-500"}`}>
+                <span className="material-symbols-outlined text-white text-2xl" style={{fontVariationSettings:"'FILL' 1"}}>
+                  {rfq.status === "PAYMENT_SUBMITTED" ? "hourglass_top" : "payments"}
+                </span>
+                <div className="flex-1">
+                  <h3 className="font-headline font-bold text-white text-lg leading-tight">
+                    {rfq.status === "PAYMENT_SUBMITTED" ? "Payment Under Review" : "Complete Your Payment"}
+                  </h3>
+                  <p className="text-white/80 text-xs mt-0.5">
+                    {rfq.status === "PAYMENT_SUBMITTED"
+                      ? "Our team is verifying your proof. We'll notify you once approved."
+                      : "Transfer the amount below and upload your receipt to confirm your order."}
+                  </p>
+                </div>
+                {rfq.status === "PAYMENT_SUBMITTED" && (
+                  <span className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-white/20 rounded-full text-white text-xs font-bold">
+                    <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                    Reviewing
+                  </span>
+                )}
+              </div>
+
+              <div className="bg-white">
+                {/* Amount due */}
+                {rfq.items?.some(i => i.unit_price) && (
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                    <span className="text-sm text-gray-500 font-medium">Amount Due</span>
+                    <span className="font-headline font-extrabold text-2xl text-amber-600">
+                      {rfq.items[0]?.currency || "USD"}{" "}
+                      {rfq.items.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * i.quantity), 0).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="grid md:grid-cols-2 gap-0 md:divide-x divide-gray-100">
+                  {/* Left — payment instructions */}
+                  <div className="px-6 py-5">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">How to Pay</p>
+                    <ol className="space-y-4">
+                      {[
+                        { icon: "account_balance", label: "Bank Transfer",   desc: "Transfer the exact amount to our bank account. Ask us via chat below for bank details." },
+                        { icon: "receipt_long",    label: "Save Your Receipt", desc: "Keep your transfer receipt or take a screenshot of the confirmation." },
+                        { icon: "cloud_upload",    label: "Upload Proof",     desc: "Upload the receipt using the form on the right. Accepted: JPEG, PNG, PDF." },
+                        { icon: "verified",        label: "Confirmation",     desc: "Our team reviews within 1 business day and confirms your order." },
+                      ].map((step, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="material-symbols-outlined text-amber-600 text-sm">{step.icon}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{step.label}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{step.desc}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  {/* Right — upload form */}
+                  <div className="px-6 py-5">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
+                      {rfq.status === "PAYMENT_SUBMITTED" ? "Replace Proof (Optional)" : "Upload Payment Proof"}
+                    </p>
+                    <PaymentProofUpload
+                      rfqId={id}
+                      rejectionNote={rfq.payment_rejection_note}
+                      existingProof={null}
+                      onUploaded={() => queryClient.invalidateQueries({ queryKey: ["customer-rfq", id] })}
+                    />
+                  </div>
+                </div>
+
+                {/* Integrated chat — ask about bank details without leaving the page */}
+                <div className="border-t border-gray-100">
+                  <div className="px-6 py-3 bg-gray-50 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-base">chat</span>
+                    <p className="text-xs font-semibold text-gray-600">Questions about payment? Chat with our team below</p>
+                  </div>
+                  <div className="px-4 pb-4">
+                    <RFQChat rfqId={id} isAdmin={false} isReadOnly={false} />
+                  </div>
                 </div>
               </div>
-              <p className="text-xs text-blue-600 mb-3">Need to replace your proof? Upload a new file below:</p>
-              <PaymentProofUpload rfqId={id} rejectionNote={rfq.payment_rejection_note} existingProof={null}
-                onUploaded={() => queryClient.invalidateQueries({ queryKey: ["customer-rfq", id] })} />
             </div>
           )}
 
@@ -347,11 +433,14 @@ export default function CustomerRFQDetail() {
             </div>
           )}
 
-          {isPostAcceptance && (
+          {isPostAcceptance && rfq.status !== "AWAITING_PAYMENT" && rfq.status !== "PAYMENT_SUBMITTED" && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h2 className="font-headline font-bold text-on-surface">Order Chat</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Communicate with our team about your order</p>
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary">chat</span>
+                <div>
+                  <h2 className="font-headline font-bold text-on-surface">Order Chat</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Communicate with our team about your order</p>
+                </div>
               </div>
               <div className="p-4">
                 <RFQChat rfqId={id} isAdmin={false} isReadOnly={rfq.status === "DELIVERED"} />
@@ -401,81 +490,44 @@ export default function CustomerRFQDetail() {
       {showAcceptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto">
-            {!acceptedAndPaying ? (
-              <>
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-emerald-600 text-3xl" style={{fontVariationSettings:"'FILL' 1"}}>handshake</span>
-                  </div>
-                  <div>
-                    <h2 className="font-headline font-extrabold text-xl text-on-surface">Accept Quotation?</h2>
-                    <p className="text-sm text-outline">{rfq.rfq_number}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-on-surface-variant mb-4">By accepting, you agree to the pricing and terms. You will then upload your payment proof.</p>
-                {rfq.items?.some(i => i.unit_price) && (
-                  <div className="bg-surface-container-low rounded-xl p-4 mb-6">
-                    <p className="text-xs font-bold text-outline uppercase tracking-widest mb-3">Order Summary</p>
-                    <div className="space-y-2">
-                      {rfq.items.filter(i => i.unit_price).map(item => (
-                        <div key={item.id} className="flex justify-between text-sm">
-                          <span className="text-on-surface-variant">{item.product_name} x {item.quantity}</span>
-                          <span className="font-semibold text-on-surface">{item.currency||"USD"} {(parseFloat(item.unit_price)*item.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
-                      <div className="border-t border-outline-variant/30 pt-2 flex justify-between font-bold">
-                        <span className="text-on-surface">Total</span>
-                        <span className="text-primary text-base">{rfq.items[0]?.currency||"USD"} {rfq.items.reduce((s,i)=>s+(parseFloat(i.unit_price||0)*i.quantity),0).toFixed(2)}</span>
-                      </div>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-emerald-600 text-3xl" style={{fontVariationSettings:"'FILL' 1"}}>handshake</span>
+              </div>
+              <div>
+                <h2 className="font-headline font-extrabold text-xl text-on-surface">Accept Quotation?</h2>
+                <p className="text-sm text-outline">{rfq.rfq_number}</p>
+              </div>
+            </div>
+            <p className="text-sm text-on-surface-variant mb-4">By accepting, you agree to the pricing and terms. You will be taken to the payment section to upload your proof.</p>
+            {rfq.items?.some(i => i.unit_price) && (
+              <div className="bg-surface-container-low rounded-xl p-4 mb-6">
+                <p className="text-xs font-bold text-outline uppercase tracking-widest mb-3">Order Summary</p>
+                <div className="space-y-2">
+                  {rfq.items.filter(i => i.unit_price).map(item => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-on-surface-variant">{item.product_name} x {item.quantity}</span>
+                      <span className="font-semibold text-on-surface">{item.currency||"USD"} {(parseFloat(item.unit_price)*item.quantity).toFixed(2)}</span>
                     </div>
-                  </div>
-                )}
-                {acceptMutation.isError && <p className="text-sm text-red-600 mb-4 bg-red-50 px-4 py-2 rounded-lg">Something went wrong. Please try again.</p>}
-                <div className="flex gap-3">
-                  <button onClick={() => setShowAcceptModal(false)} disabled={acceptMutation.isPending}
-                    className="flex-1 px-4 py-3 border border-outline-variant rounded-xl text-sm font-semibold text-on-surface hover:bg-surface-container disabled:opacity-50">Cancel</button>
-                  <button onClick={() => acceptMutation.mutate()} disabled={acceptMutation.isPending}
-                    className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
-                    {acceptMutation.isPending
-                      ? <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span>Processing...</>
-                      : <><span className="material-symbols-outlined text-base" style={{fontVariationSettings:"'FILL' 1"}}>check_circle</span>Accept &amp; Continue to Payment</>}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-emerald-600 text-xl" style={{fontVariationSettings:"'FILL' 1"}}>check_circle</span>
-                  </div>
-                  <div>
-                    <h2 className="font-headline font-extrabold text-lg text-on-surface">Quotation Accepted!</h2>
-                    <p className="text-sm text-gray-500">Now upload your payment proof to proceed</p>
+                  ))}
+                  <div className="border-t border-outline-variant/30 pt-2 flex justify-between font-bold">
+                    <span className="text-on-surface">Total</span>
+                    <span className="text-primary text-base">{rfq.items[0]?.currency||"USD"} {rfq.items.reduce((s,i)=>s+(parseFloat(i.unit_price||0)*i.quantity),0).toFixed(2)}</span>
                   </div>
                 </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-                  <p className="text-sm font-semibold text-amber-800 mb-1 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-amber-600 text-base">payments</span>
-                    Payment Required
-                  </p>
-                  <p className="text-xs text-amber-700">Upload your bank transfer receipt or payment screenshot below.</p>
-                </div>
-                <PaymentProofUpload
-                  rfqId={id}
-                  rejectionNote={null}
-                  existingProof={null}
-                  onUploaded={() => {
-                    queryClient.invalidateQueries({ queryKey: ["customer-rfq", id] })
-                    setShowAcceptModal(false)
-                    setAcceptedAndPaying(false)
-                  }}
-                />
-                <button onClick={() => { setShowAcceptModal(false); setAcceptedAndPaying(false) }}
-                  className="mt-4 w-full py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50">
-                  I'll upload later
-                </button>
-              </>
+              </div>
             )}
+            {acceptMutation.isError && <p className="text-sm text-red-600 mb-4 bg-red-50 px-4 py-2 rounded-lg">Something went wrong. Please try again.</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setShowAcceptModal(false)} disabled={acceptMutation.isPending}
+                className="flex-1 px-4 py-3 border border-outline-variant rounded-xl text-sm font-semibold text-on-surface hover:bg-surface-container disabled:opacity-50">Cancel</button>
+              <button onClick={() => acceptMutation.mutate()} disabled={acceptMutation.isPending}
+                className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
+                {acceptMutation.isPending
+                  ? <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span>Processing...</>
+                  : <><span className="material-symbols-outlined text-base" style={{fontVariationSettings:"'FILL' 1"}}>check_circle</span>Accept &amp; Proceed to Payment</>}
+              </button>
+            </div>
           </div>
         </div>
       )}

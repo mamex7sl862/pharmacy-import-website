@@ -3,7 +3,7 @@ const pool = require('../db/pool')
 const { verifyToken } = require('../middleware/auth')
 const { generateRFQPDF } = require('../services/pdf')
 const { paymentUpload, chatFileUpload, getFileUrl } = require('../services/upload')
-const { sendAwaitingPaymentEmail } = require('../services/email')
+const { sendAwaitingPaymentEmail, sendAdminPaymentNotification } = require('../services/email')
 
 router.use(verifyToken)
 
@@ -243,6 +243,17 @@ router.post('/rfqs/:id/payment-proof', (req, res, next) => {
         `UPDATE rfqs SET status = 'PAYMENT_SUBMITTED', payment_rejection_note = NULL, updated_at = NOW() WHERE id = $1`,
         [rfq.id]
       )
+
+      // Notify admin by email (non-blocking)
+      const { rows: userRows } = await pool.query(
+        `SELECT u.full_name, u.company_name FROM users u
+         JOIN rfqs r ON r.customer_id = u.id WHERE r.id = $1`,
+        [rfq.id]
+      )
+      if (userRows.length) {
+        sendAdminPaymentNotification(rfq.rfq_number, userRows[0].full_name, userRows[0].company_name)
+          .catch(e => console.error('Admin payment notification email failed:', e.message))
+      }
 
       res.json({ success: true, proof: proofRows[0] })
     } catch (e) { next(e) }

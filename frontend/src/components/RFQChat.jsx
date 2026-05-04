@@ -38,10 +38,14 @@ export default function RFQChat({ rfqId, isAdmin, isReadOnly }) {
 
   const messages = data?.messages || []
   const chatStatus = data?.chat?.status
+  const prevLengthRef = useRef(0)
 
-  // Auto-scroll to bottom
+  // Auto-scroll only when NEW messages arrive, not on initial load
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length > prevLengthRef.current && prevLengthRef.current > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevLengthRef.current = messages.length
   }, [messages.length])
 
   async function handleSend(e) {

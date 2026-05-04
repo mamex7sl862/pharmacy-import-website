@@ -5,19 +5,29 @@ import api from '../lib/api'
 import AdminLayout from '../components/AdminLayout'
 
 const STATUS_BADGE = {
-  NEW:            'bg-blue-50 text-blue-700',
-  UNDER_REVIEW:   'bg-yellow-50 text-yellow-700',
-  QUOTATION_SENT: 'bg-green-50 text-green-700',
-  CLOSED:         'bg-emerald-50 text-emerald-700',
-  DECLINED:       'bg-red-50 text-red-700',
+  NEW:               'bg-blue-50 text-blue-700',
+  UNDER_REVIEW:      'bg-yellow-50 text-yellow-700',
+  QUOTATION_SENT:    'bg-green-50 text-green-700',
+  CLOSED:            'bg-emerald-50 text-emerald-700',
+  DECLINED:          'bg-red-50 text-red-700',
+  AWAITING_PAYMENT:  'bg-amber-50 text-amber-700',
+  PAYMENT_SUBMITTED: 'bg-blue-50 text-blue-700',
+  PAYMENT_CONFIRMED: 'bg-teal-50 text-teal-700',
+  SHIPPED:           'bg-indigo-50 text-indigo-700',
+  DELIVERED:         'bg-emerald-50 text-emerald-700',
 }
 
 const STATUS_LABEL = {
-  NEW:            'New',
-  UNDER_REVIEW:   'Under Review',
-  QUOTATION_SENT: 'Quotation Sent',
-  CLOSED:         'Closed',
-  DECLINED:       'Declined',
+  NEW:               'New',
+  UNDER_REVIEW:      'Under Review',
+  QUOTATION_SENT:    'Quotation Sent',
+  CLOSED:            'Closed',
+  DECLINED:          'Declined',
+  AWAITING_PAYMENT:  'Awaiting Payment',
+  PAYMENT_SUBMITTED: 'Payment Review',
+  PAYMENT_CONFIRMED: 'Payment Confirmed',
+  SHIPPED:           'Shipped',
+  DELIVERED:         'Delivered',
 }
 
 export default function RFQList() {
@@ -32,18 +42,23 @@ export default function RFQList() {
     queryKey: ['admin-rfqs', filters],
     queryFn: () => api.get('/admin/rfqs', { params: { ...filters, limit: 20 } }).then((r) => r.data),
     keepPreviousData: true,
+    refetchInterval: 20000,           // auto-refresh every 20s — new RFQs appear without reload
+    refetchIntervalInBackground: true,
   })
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status }) => api.patch(`/admin/rfqs/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries(['admin-rfqs']),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
+    },
   })
 
   const deleteRFQ = useMutation({
     mutationFn: (id) => api.delete(`/admin/rfqs/${id}`),
     onSuccess: () => {
-      qc.invalidateQueries(['admin-rfqs'])
-      qc.invalidateQueries(['admin-rfqs-dash'])
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
       setDeleteConfirm(null)
       setSelectedIds(s => s.filter(id => id !== deleteConfirm?.id))
     },
@@ -52,8 +67,8 @@ export default function RFQList() {
   const bulkDeleteRFQ = useMutation({
     mutationFn: (ids) => api.post('/admin/rfqs/bulk-delete', { ids }),
     onSuccess: () => {
-      qc.invalidateQueries(['admin-rfqs'])
-      qc.invalidateQueries(['admin-rfqs-dash'])
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
       setBulkDeleteConfirm(false)
       setSelectedIds([])
     },
@@ -76,12 +91,17 @@ export default function RFQList() {
   const set = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value, page: 1 }))
 
   const STATUS_CHIPS = [
-    { label: 'All',            value: '' },
-    { label: 'New',            value: 'NEW' },
-    { label: 'Under Review',   value: 'UNDER_REVIEW' },
-    { label: 'Quotation Sent', value: 'QUOTATION_SENT' },
-    { label: 'Closed',         value: 'CLOSED' },
-    { label: 'Declined',       value: 'DECLINED' },
+    { label: 'All',               value: '' },
+    { label: 'New',               value: 'NEW' },
+    { label: 'Under Review',      value: 'UNDER_REVIEW' },
+    { label: 'Quotation Sent',    value: 'QUOTATION_SENT' },
+    { label: 'Awaiting Payment',  value: 'AWAITING_PAYMENT' },
+    { label: 'Payment Review',    value: 'PAYMENT_SUBMITTED' },
+    { label: 'Confirmed',         value: 'PAYMENT_CONFIRMED' },
+    { label: 'Shipped',           value: 'SHIPPED' },
+    { label: 'Delivered',         value: 'DELIVERED' },
+    { label: 'Closed',            value: 'CLOSED' },
+    { label: 'Declined',          value: 'DECLINED' },
   ]
 
   return (
@@ -237,9 +257,10 @@ export default function RFQList() {
                       <td className="py-4 px-4 font-medium text-on-surface">{rfq.customerName}</td>
                       <td className="py-4 px-4 text-on-surface-variant line-clamp-1">{rfq.companyName}</td>
                       <td className="py-4 px-4">
-                        {['CLOSED', 'DECLINED'].includes(rfq.status) ? (
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${STATUS_BADGE[rfq.status]}`}>
-                            {STATUS_LABEL[rfq.status]}
+                        {['CLOSED', 'DECLINED', 'AWAITING_PAYMENT', 'PAYMENT_SUBMITTED',
+                          'PAYMENT_CONFIRMED', 'SHIPPED', 'DELIVERED'].includes(rfq.status) ? (
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${STATUS_BADGE[rfq.status] || 'bg-gray-100 text-gray-600'}`}>
+                            {STATUS_LABEL[rfq.status] || rfq.status}
                           </span>
                         ) : (
                           <select
@@ -255,7 +276,7 @@ export default function RFQList() {
                           >
                             <option value="NEW">New</option>
                             <option value="UNDER_REVIEW">Under Review</option>
-                            <option value="QUOTATION_SENT">Quotation Sent</option>
+                            <option value="QUOTATION_SENT">Quotation Sent →</option>
                             <option value="CLOSED">Closed</option>
                           </select>
                         )}
@@ -322,8 +343,8 @@ export default function RFQList() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${STATUS_BADGE[rfq.status]}`}>
-                        {STATUS_LABEL[rfq.status]}
+                      <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${STATUS_BADGE[rfq.status] || 'bg-gray-100 text-gray-600'}`}>
+                        {STATUS_LABEL[rfq.status] || rfq.status}
                       </span>
                       <p className="text-[10px] text-outline font-bold mt-2">{new Date(rfq.submittedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                     </div>

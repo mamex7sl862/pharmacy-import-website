@@ -75,7 +75,11 @@ export default function RFQDetails() {
 
   const updateStatus = useMutation({
     mutationFn: ({ status, verificationFeedback }) => api.patch(`/admin/rfqs/${id}/status`, { status, verificationFeedback }),
-    onSuccess: () => qc.invalidateQueries(['admin-rfq', id]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rfq', id] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
+    },
   })
 
   const handleStatusChange = async (status) => {
@@ -111,13 +115,19 @@ export default function RFQDetails() {
     }),
     onSuccess: () => {
       setQuotationSent(true)
-      qc.invalidateQueries(['admin-rfq', id])
+      qc.invalidateQueries({ queryKey: ['admin-rfq', id] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
     },
   })
 
   const updateLegitimacy = useMutation({
     mutationFn: ({ isLegitimate, verificationFeedback }) => api.patch(`/admin/rfqs/${id}/legitimacy`, { isLegitimate, verificationFeedback }),
-    onSuccess: () => qc.invalidateQueries(['admin-rfq', id]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rfq', id] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
+    },
   })
 
   const handleLegitimacyChange = async (isLegitimate) => {
@@ -885,11 +895,22 @@ function PaymentActions({ rfqId, qc }) {
 
   const confirmMutation = useMutation({
     mutationFn: () => api.post(`/admin/rfqs/${rfqId}/confirm-payment`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
+      qc.invalidateQueries({ queryKey: ['admin-pending-payments-dash'] })
+    },
   })
   const rejectMutation = useMutation({
     mutationFn: () => api.post(`/admin/rfqs/${rfqId}/reject-payment`, { rejectionNote: rejectNote }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] }); setRejectModal(false) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
+      qc.invalidateQueries({ queryKey: ['admin-pending-payments-dash'] })
+      setRejectModal(false)
+    },
   })
 
   return (
@@ -929,7 +950,11 @@ function ShipAction({ rfqId, qc }) {
   const [trackingInfo, setTrackingInfo] = useState('')
   const mutation = useMutation({
     mutationFn: () => api.post(`/admin/rfqs/${rfqId}/mark-shipped`, { trackingInfo }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+      qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
+    },
   })
   return (
     <div className="space-y-3">
