@@ -32,6 +32,8 @@ export default function CustomerRFQDetail() {
   const { data: rfq, isLoading } = useQuery({
     queryKey: ["customer-rfq", id],
     queryFn: () => api.get(`/customer/rfqs/${id}`).then(r => r.data),
+    refetchInterval: 15000,
+    refetchIntervalInBackground: true,
   })
 
   const acceptMutation = useMutation({
