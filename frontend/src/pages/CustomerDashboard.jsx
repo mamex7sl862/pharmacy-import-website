@@ -44,6 +44,7 @@ export default function CustomerDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['customer-rfqs'],
     queryFn: () => api.get('/customer/rfqs').then((r) => r.data),
+    staleTime: 0,
     refetchInterval: 15000,
     refetchIntervalInBackground: true,
   })
