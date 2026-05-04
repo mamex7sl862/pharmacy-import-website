@@ -1,34 +1,61 @@
 const nodemailer = require('nodemailer')
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
-
-// Returns true only when SMTP is fully configured with real (non-placeholder) credentials
-function isSmtpConfigured() {
-  return !!(
-    process.env.SMTP_HOST &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_USER !== 'your@email.com' &&
-    process.env.SMTP_PASS &&
-    process.env.SMTP_PASS !== 'your-app-password'
-  )
+// ── Resend (HTTP-based, works on Render free tier) ────────────────────────────
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null
+  try {
+    const { Resend } = require('resend')
+    return new Resend(process.env.RESEND_API_KEY)
+  } catch {
+    return null
+  }
 }
 
-async function sendCustomerConfirmation(email, rfqNumber, customerName) {
-  if (!isSmtpConfigured()) {
-    console.log(`[EMAIL SKIPPED] Confirmation to ${email} for ${rfqNumber}`)
+// ── SMTP fallback (nodemailer) ────────────────────────────────────────────────
+function getSmtpTransporter() {
+  if (
+    !process.env.SMTP_HOST ||
+    !process.env.SMTP_USER ||
+    process.env.SMTP_USER === 'your@email.com' ||
+    !process.env.SMTP_PASS ||
+    process.env.SMTP_PASS === 'your-app-password'
+  ) return null
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  })
+}
+
+// ── Generic send ──────────────────────────────────────────────────────────────
+async function sendMail({ to, subject, html }) {
+  const resend = getResend()
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@pharmalinkwholesale.com'
+
+  if (resend) {
+    // Use Resend (works on Render)
+    const { error } = await resend.emails.send({ from: `PharmaLink Wholesale <${from}>`, to, subject, html })
+    if (error) throw new Error(error.message)
     return
   }
+
+  const transporter = getSmtpTransporter()
+  if (transporter) {
+    await transporter.sendMail({ from: `"PharmaLink Wholesale" <${from}>`, to, subject, html })
+    return
+  }
+
+  // No email provider configured — log and skip
+  console.log(`[EMAIL SKIPPED] No provider configured. To: ${to} | Subject: ${subject}`)
+}
+
+// ── Public functions ──────────────────────────────────────────────────────────
+
+async function sendCustomerConfirmation(email, rfqNumber, customerName) {
   try {
-    await transporter.sendMail({
-      from: `"PharmaLink Wholesale" <${process.env.SMTP_FROM}>`,
+    await sendMail({
       to: email,
       subject: `RFQ Received — ${rfqNumber}`,
       html: `
@@ -36,8 +63,7 @@ async function sendCustomerConfirmation(email, rfqNumber, customerName) {
         <p>Your Request for Quotation has been received.</p>
         <p><strong>RFQ Number:</strong> ${rfqNumber}</p>
         <p>Our team will review your request and respond within 24 hours.</p>
-        <br/>
-        <p>PharmaLink Wholesale Team</p>
+        <br/><p>PharmaLink Wholesale Team</p>
       `,
     })
   } catch (err) {
@@ -46,14 +72,11 @@ async function sendCustomerConfirmation(email, rfqNumber, customerName) {
 }
 
 async function sendAdminNotification(rfqNumber, customerName, companyName, itemCount) {
-  if (!isSmtpConfigured() || !process.env.ADMIN_EMAIL) {
-    console.log(`[EMAIL SKIPPED] Admin notification for ${rfqNumber}`)
-    return
-  }
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (!adminEmail) { console.log(`[EMAIL SKIPPED] No ADMIN_EMAIL set`); return }
   try {
-    await transporter.sendMail({
-      from: `"PharmaLink System" <${process.env.SMTP_FROM}>`,
-      to: process.env.ADMIN_EMAIL,
+    await sendMail({
+      to: adminEmail,
       subject: `New RFQ — ${rfqNumber}`,
       html: `
         <h2>New RFQ Submitted</h2>
@@ -69,48 +92,63 @@ async function sendAdminNotification(rfqNumber, customerName, companyName, itemC
 }
 
 async function sendQuotationEmail(email, rfqNumber, pdfBuffer) {
-  if (!isSmtpConfigured()) {
+  // Resend doesn't support nodemailer attachments directly — use SMTP for this
+  const transporter = getSmtpTransporter()
+  if (!transporter && !getResend()) {
     console.log(`[EMAIL SKIPPED] Quotation to ${email} for ${rfqNumber}`)
     return
   }
   try {
-    await transporter.sendMail({
-      from: `"PharmaLink Wholesale" <${process.env.SMTP_FROM}>`,
-      to: email,
-      subject: `Quotation for ${rfqNumber}`,
-      html: `
-        <h2>Your Quotation is Ready</h2>
-        <p>Please find your quotation for <strong>${rfqNumber}</strong> attached.</p>
-        <p>Contact us if you have any questions.</p>
-        <br/>
-        <p>PharmaLink Wholesale Team</p>
-      `,
-      attachments: pdfBuffer
-        ? [{ filename: `${rfqNumber}-quotation.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
-        : [],
-    })
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@pharmalinkwholesale.com'
+    if (transporter) {
+      await transporter.sendMail({
+        from: `"PharmaLink Wholesale" <${from}>`,
+        to: email,
+        subject: `Quotation for ${rfqNumber}`,
+        html: `
+          <h2>Your Quotation is Ready</h2>
+          <p>Please find your quotation for <strong>${rfqNumber}</strong> attached.</p>
+          <p>Contact us if you have any questions.</p>
+          <br/><p>PharmaLink Wholesale Team</p>
+        `,
+        attachments: pdfBuffer
+          ? [{ filename: `${rfqNumber}-quotation.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+          : [],
+      })
+    } else {
+      // Resend — send without attachment (PDF attachments need base64)
+      const resend = getResend()
+      await resend.emails.send({
+        from: `PharmaLink Wholesale <${from}>`,
+        to: email,
+        subject: `Quotation for ${rfqNumber}`,
+        html: `
+          <h2>Your Quotation is Ready</h2>
+          <p>Your quotation for <strong>${rfqNumber}</strong> has been prepared.</p>
+          <p>Please log in to your portal to download it, or contact us for the PDF.</p>
+          <br/><p>PharmaLink Wholesale Team</p>
+        `,
+        ...(pdfBuffer ? {
+          attachments: [{ filename: `${rfqNumber}-quotation.pdf`, content: pdfBuffer.toString('base64') }]
+        } : {}),
+      })
+    }
   } catch (err) {
     console.error('[EMAIL ERROR] Quotation email:', err.message)
-    throw err // re-throw so caller knows it failed
+    throw err
   }
 }
 
 async function sendContactAutoReply(email, firstName) {
-  if (!isSmtpConfigured()) {
-    console.log(`[EMAIL SKIPPED] Contact auto-reply to ${email}`)
-    return
-  }
   try {
-    await transporter.sendMail({
-      from: `"PharmaLink Wholesale" <${process.env.SMTP_FROM}>`,
+    await sendMail({
       to: email,
       subject: 'We received your message — PharmaLink Wholesale',
       html: `
         <h2>Thank you, ${firstName}!</h2>
         <p>We have received your message and our team will get back to you within 1 business day.</p>
         <p>If your enquiry is urgent, please call us at <strong>+44 (0) 20 7946 0123</strong> (Mon–Fri, 9am–6pm GMT).</p>
-        <br/>
-        <p>Best regards,<br/>PharmaLink Wholesale Team</p>
+        <br/><p>Best regards,<br/>PharmaLink Wholesale Team</p>
       `,
     })
   } catch (err) {
@@ -119,14 +157,8 @@ async function sendContactAutoReply(email, firstName) {
 }
 
 async function sendPasswordResetEmail(email, resetUrl) {
-  if (!isSmtpConfigured()) {
-    console.log(`[EMAIL SKIPPED] Password reset for ${email}`)
-    console.log(`[RESET LINK] ${resetUrl}`)
-    return
-  }
   try {
-    await transporter.sendMail({
-      from: `"PharmaLink Wholesale" <${process.env.SMTP_FROM}>`,
+    await sendMail({
       to: email,
       subject: 'Reset your password — PharmaLink Wholesale',
       html: `
@@ -136,10 +168,11 @@ async function sendPasswordResetEmail(email, resetUrl) {
         <br/>
         <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Reset Password</a>
         <br/><br/>
-        <p>If you didn't request this, you can safely ignore this email — your password won't change.</p>
+        <p>If you didn't request this, you can safely ignore this email.</p>
         <p>PharmaLink Wholesale Team</p>
       `,
     })
+    console.log(`[EMAIL] Password reset sent to ${email}`)
   } catch (err) {
     console.error('[EMAIL ERROR] Password reset:', err.message)
     // Don't re-throw — token is saved, flow should still succeed
