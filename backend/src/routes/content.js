@@ -19,12 +19,11 @@ router.get('/site/:section', async (req, res, next) => {
       'SELECT data FROM site_content WHERE section = $1',
       [req.params.section]
     )
-    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    if (!rows.length) return res.json({})
     res.json(rows[0].data)
   } catch (err) {
-    if (err.code === '42P01') return res.status(404).json({ error: 'NOT_FOUND' })
-    // If section not found, return empty object instead of 404 to avoid console noise
-    res.json({}) 
+    if (err.code === '42P01') return res.json({})
+    next(err)
   }
 })
 

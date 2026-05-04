@@ -185,6 +185,32 @@ app.listen(PORT, async () => {
       )
     `)
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id)`)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS site_content (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        section    VARCHAR(100) UNIQUE NOT NULL,
+        data       JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS content_blocks (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        block_key  VARCHAR(100) UNIQUE NOT NULL,
+        content    JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS testimonials (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        customer_name VARCHAR(255) NOT NULL,
+        company_name  VARCHAR(255),
+        comment       TEXT NOT NULL,
+        is_active     BOOLEAN NOT NULL DEFAULT true,
+        sort_order    INTEGER NOT NULL DEFAULT 0
+      )
+    `)
     console.log('✅ Auto-migrations completed')
 
     const result = await pool.query('SELECT COUNT(*) FROM products')
