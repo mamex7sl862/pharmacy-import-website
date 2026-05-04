@@ -228,6 +228,11 @@ export default function RFQList() {
                         <Link to={`/admin/rfqs/${rfq.id}`} className="font-mono text-primary font-bold hover:underline text-xs">
                           {rfq.rfqNumber}
                         </Link>
+                        {rfq.chatUnreadCount > 0 && (
+                          <span className="ml-1.5 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {rfq.chatUnreadCount}
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 px-4 font-medium text-on-surface">{rfq.customerName}</td>
                       <td className="py-4 px-4 text-on-surface-variant line-clamp-1">{rfq.companyName}</td>
@@ -307,6 +312,11 @@ export default function RFQList() {
                         <Link to={`/admin/rfqs/${rfq.id}`} className="font-mono text-primary font-bold hover:underline text-xs block mb-1">
                           {rfq.rfqNumber}
                         </Link>
+                        {rfq.chatUnreadCount > 0 && (
+                          <span className="inline-block mb-1 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {rfq.chatUnreadCount} new messages
+                          </span>
+                        )}
                         <h3 className="font-bold text-on-surface truncate">{rfq.customerName}</h3>
                         <p className="text-xs text-on-surface-variant font-medium mt-0.5">{rfq.companyName}</p>
                       </div>

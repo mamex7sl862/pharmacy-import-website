@@ -3,8 +3,9 @@ const multer = require('multer')
 const pool = require('../db/pool')
 const { requireAdmin } = require('../middleware/auth')
 const { generateRFQPDF } = require('../services/pdf')
-const { sendQuotationEmail } = require('../services/email')
+const { sendQuotationEmail, sendPaymentConfirmedEmail, sendShippedEmail } = require('../services/email')
 const { cloudinary, storage } = require('../config/cloudinary')
+const { chatFileUpload, getFileUrl } = require('../services/upload')
 
 // Multer for product images (images only)
 const imageUpload = multer({
@@ -56,7 +57,9 @@ router.get('/proxy-document', async (req, res, next) => {
 
 router.use(requireAdmin)
 
-const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'QUOTATION_SENT', 'CLOSED', 'DECLINED']
+const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'QUOTATION_SENT', 'CLOSED', 'DECLINED',
+  'AWAITING_PAYMENT', 'PAYMENT_SUBMITTED', 'PAYMENT_CONFIRMED', 'SHIPPED', 'DELIVERED']
+const POST_ACCEPTANCE = ['AWAITING_PAYMENT', 'PAYMENT_SUBMITTED', 'PAYMENT_CONFIRMED', 'SHIPPED', 'DELIVERED']
 
 // ── POST /api/admin/upload-image — upload product image to Cloudinary ─────────
 router.post('/upload-image', (req, res) => {
@@ -137,7 +140,7 @@ router.get('/rfqs/:id', async (req, res, next) => {
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
 
     const rfq = rows[0]
-    const [{ rows: items }, { rows: attachments }] = await Promise.all([
+    const [{ rows: items }, { rows: attachments }, { rows: paymentProofs }, { rows: chatUnread }] = await Promise.all([
       pool.query(
         `SELECT ri.id, ri.product_name, ri.brand, ri.quantity, ri.unit, ri.notes,
                 COALESCE(ri.unit_price, p.price, p2.price)          AS "unitPrice",
@@ -149,9 +152,18 @@ router.get('/rfqs/:id', async (req, res, next) => {
         [rfq.id]
       ),
       pool.query('SELECT * FROM rfq_attachments WHERE rfq_id = $1', [rfq.id]),
+      pool.query('SELECT * FROM rfq_payment_proofs WHERE rfq_id = $1 ORDER BY uploaded_at DESC LIMIT 1', [rfq.id]),
+      pool.query(
+        `SELECT COUNT(*)::int AS count FROM rfq_chat_messages m
+         JOIN rfq_chats c ON c.id = m.rfq_chat_id
+         WHERE c.rfq_id = $1 AND m.is_from_admin = false AND m.is_read = false`,
+        [rfq.id]
+      ),
     ])
     rfq.items = items
     rfq.attachments = attachments
+    rfq.paymentProof = paymentProofs[0] || null
+    rfq.chatUnreadCount = chatUnread[0]?.count || 0
 
     res.json(rfq)
   } catch (err) { next(err) }
@@ -188,12 +200,13 @@ router.patch('/rfqs/:id/status', async (req, res, next) => {
     console.log('Status update request:', { id: req.params.id, status, verificationFeedback })
     if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'INVALID_STATUS' })
 
-    // Prevent changing status of a locked RFQ (unless we are unlocking it/changing notes)
     const { rows: current } = await pool.query('SELECT status FROM rfqs WHERE id = $1', [req.params.id])
     if (!current.length) return res.status(404).json({ error: 'NOT_FOUND' })
-    
-    // Allow updating feedback even if locked, or changing status if it's not locked.
-    // However, if we're changing status TO closed/declined, we might want to save feedback.
+
+    // Block manual changes to/from post-acceptance states — use dedicated endpoints
+    if (POST_ACCEPTANCE.includes(current[0].status) || POST_ACCEPTANCE.includes(status)) {
+      return res.status(400).json({ error: 'USE_DEDICATED_ENDPOINT', message: 'Post-acceptance status changes must use dedicated endpoints.' })
+    }
     
     await pool.query(
       'UPDATE rfqs SET status = $1, verification_feedback = COALESCE($2, verification_feedback), updated_at = NOW() WHERE id = $3',
@@ -538,6 +551,128 @@ router.delete('/testimonials/:id', async (req, res, next) => {
   try {
     await pool.query('DELETE FROM testimonials WHERE id = $1', [req.params.id])
     res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// ── POST /api/admin/rfqs/:id/confirm-payment ──────────────────────────────────
+router.post('/rfqs/:id/confirm-payment', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.status, r.rfq_number,
+              COALESCE(u.full_name, r.guest_full_name) AS "customerName",
+              COALESCE(u.email, r.guest_email) AS "customerEmail"
+       FROM rfqs r LEFT JOIN users u ON u.id = r.customer_id WHERE r.id = $1`,
+      [req.params.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    if (rows[0].status !== 'PAYMENT_SUBMITTED') return res.status(400).json({ error: 'INVALID_STATUS_TRANSITION' })
+
+    await pool.query(
+      `UPDATE rfqs SET status = 'PAYMENT_CONFIRMED', payment_rejection_note = NULL, updated_at = NOW() WHERE id = $1`,
+      [req.params.id]
+    )
+
+    sendPaymentConfirmedEmail(rows[0].customerEmail, rows[0].customerName, rows[0].rfq_number)
+      .catch(e => console.error('Payment confirmed email failed:', e.message))
+
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// ── POST /api/admin/rfqs/:id/reject-payment ───────────────────────────────────
+router.post('/rfqs/:id/reject-payment', async (req, res, next) => {
+  try {
+    const { rejectionNote } = req.body
+    if (!rejectionNote?.trim()) return res.status(400).json({ error: 'REJECTION_NOTE_REQUIRED' })
+
+    const { rows } = await pool.query('SELECT status FROM rfqs WHERE id = $1', [req.params.id])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    if (rows[0].status !== 'PAYMENT_SUBMITTED') return res.status(400).json({ error: 'INVALID_STATUS_TRANSITION' })
+
+    await pool.query(
+      `UPDATE rfqs SET status = 'AWAITING_PAYMENT', payment_rejection_note = $1, updated_at = NOW() WHERE id = $2`,
+      [rejectionNote.trim(), req.params.id]
+    )
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// ── POST /api/admin/rfqs/:id/mark-shipped ─────────────────────────────────────
+router.post('/rfqs/:id/mark-shipped', async (req, res, next) => {
+  try {
+    const { trackingInfo } = req.body
+    const { rows } = await pool.query(
+      `SELECT r.id, r.status, r.rfq_number,
+              COALESCE(u.full_name, r.guest_full_name) AS "customerName",
+              COALESCE(u.email, r.guest_email) AS "customerEmail"
+       FROM rfqs r LEFT JOIN users u ON u.id = r.customer_id WHERE r.id = $1`,
+      [req.params.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    if (rows[0].status !== 'PAYMENT_CONFIRMED') return res.status(400).json({ error: 'INVALID_STATUS_TRANSITION' })
+
+    await pool.query(
+      `UPDATE rfqs SET status = 'SHIPPED', tracking_info = $1, updated_at = NOW() WHERE id = $2`,
+      [trackingInfo?.trim() || null, req.params.id]
+    )
+
+    sendShippedEmail(rows[0].customerEmail, rows[0].customerName, rows[0].rfq_number, trackingInfo)
+      .catch(e => console.error('Shipped email failed:', e.message))
+
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// ── GET /api/admin/rfqs/:id/chat ──────────────────────────────────────────────
+router.get('/rfqs/:id/chat', async (req, res, next) => {
+  try {
+    const { rows: chatRows } = await pool.query(
+      `SELECT * FROM rfq_chats WHERE rfq_id = $1`, [req.params.id]
+    )
+    if (!chatRows.length) return res.json({ chat: null, messages: [] })
+
+    const chat = chatRows[0]
+    const { rows: messages } = await pool.query(
+      `SELECT id, sender_name AS "senderName", message, is_from_admin AS "isFromAdmin",
+              is_read AS "isRead", file_url AS "fileUrl", file_name AS "fileName",
+              mime_type AS "mimeType", created_at AS "createdAt"
+       FROM rfq_chat_messages WHERE rfq_chat_id = $1 ORDER BY created_at ASC`,
+      [chat.id]
+    )
+
+    // Mark customer messages as read
+    await pool.query(
+      `UPDATE rfq_chat_messages SET is_read = true
+       WHERE rfq_chat_id = $1 AND is_from_admin = false AND is_read = false`,
+      [chat.id]
+    )
+
+    res.json({ chat: { id: chat.id, status: chat.status, lastMsgAt: chat.last_msg_at }, messages })
+  } catch (err) { next(err) }
+})
+
+// ── POST /api/admin/rfqs/:id/chat/messages ────────────────────────────────────
+router.post('/rfqs/:id/chat/messages', async (req, res, next) => {
+  try {
+    const { message } = req.body
+    if (!message?.trim()) return res.status(400).json({ error: 'EMPTY_MESSAGE' })
+
+    const { rows: chatRows } = await pool.query(
+      `SELECT * FROM rfq_chats WHERE rfq_id = $1`, [req.params.id]
+    )
+    if (!chatRows.length) return res.status(404).json({ error: 'CHAT_NOT_FOUND' })
+    const chat = chatRows[0]
+    if (chat.status === 'CLOSED') return res.status(400).json({ error: 'CHAT_LOCKED' })
+
+    const { rows: msgRows } = await pool.query(
+      `INSERT INTO rfq_chat_messages
+         (rfq_chat_id, sender_id, sender_name, message, is_from_admin)
+       VALUES ($1,$2,'Admin',$3,true) RETURNING *`,
+      [chat.id, req.user.id, message.trim()]
+    )
+    await pool.query(`UPDATE rfq_chats SET last_msg_at = NOW() WHERE id = $1`, [chat.id])
+
+    res.json({ success: true, message: msgRows[0] })
   } catch (err) { next(err) }
 })
 

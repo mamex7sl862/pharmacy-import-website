@@ -156,6 +156,71 @@ async function sendContactAutoReply(email, firstName) {
   }
 }
 
+async function sendAwaitingPaymentEmail(email, customerName, rfqNumber) {
+  try {
+    await sendMail({
+      to: email,
+      subject: `Payment Required — ${rfqNumber}`,
+      html: `
+        <h2>Your Quotation Has Been Accepted</h2>
+        <p>Dear ${customerName},</p>
+        <p>Thank you for accepting the quotation for <strong>${rfqNumber}</strong>.</p>
+        <p>To proceed with your order, please make your payment via bank transfer and upload your payment proof (receipt or screenshot) through your customer portal.</p>
+        <p><strong>Steps:</strong></p>
+        <ol>
+          <li>Log in to your customer portal</li>
+          <li>Open RFQ <strong>${rfqNumber}</strong></li>
+          <li>Upload your payment proof (JPEG, PNG, or PDF)</li>
+        </ol>
+        <p>Our team will verify your payment and begin processing your order.</p>
+        <br/><p>PharmaLink Wholesale Team</p>
+      `,
+    })
+    console.log(`[EMAIL] Awaiting payment sent to ${email}`)
+  } catch (err) {
+    console.error('[EMAIL ERROR] Awaiting payment:', err.message)
+  }
+}
+
+async function sendPaymentConfirmedEmail(email, customerName, rfqNumber) {
+  try {
+    await sendMail({
+      to: email,
+      subject: `Payment Confirmed — ${rfqNumber}`,
+      html: `
+        <h2>Payment Verified ✓</h2>
+        <p>Dear ${customerName},</p>
+        <p>We have successfully verified your payment for order <strong>${rfqNumber}</strong>.</p>
+        <p>Your order is now being prepared for shipment. We will notify you once it has been dispatched.</p>
+        <br/><p>PharmaLink Wholesale Team</p>
+      `,
+    })
+    console.log(`[EMAIL] Payment confirmed sent to ${email}`)
+  } catch (err) {
+    console.error('[EMAIL ERROR] Payment confirmed:', err.message)
+  }
+}
+
+async function sendShippedEmail(email, customerName, rfqNumber, trackingInfo) {
+  try {
+    await sendMail({
+      to: email,
+      subject: `Your Order Has Been Shipped — ${rfqNumber}`,
+      html: `
+        <h2>Your Order Is On Its Way 🚚</h2>
+        <p>Dear ${customerName},</p>
+        <p>Great news! Your order <strong>${rfqNumber}</strong> has been dispatched.</p>
+        ${trackingInfo ? `<p><strong>Tracking Information:</strong> ${trackingInfo}</p>` : ''}
+        <p>Please log in to your portal to confirm delivery once you receive your order.</p>
+        <br/><p>PharmaLink Wholesale Team</p>
+      `,
+    })
+    console.log(`[EMAIL] Shipped email sent to ${email}`)
+  } catch (err) {
+    console.error('[EMAIL ERROR] Shipped email:', err.message)
+  }
+}
+
 async function sendPasswordResetEmail(email, resetUrl) {
   try {
     await sendMail({
@@ -184,5 +249,8 @@ module.exports = {
   sendAdminNotification,
   sendQuotationEmail,
   sendContactAutoReply,
+  sendAwaitingPaymentEmail,
+  sendPaymentConfirmedEmail,
+  sendShippedEmail,
   sendPasswordResetEmail,
 }

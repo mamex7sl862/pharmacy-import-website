@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import AdminLayout from '../components/AdminLayout'
+import RFQChat from '../components/RFQChat'
 
 const STATUS_BADGE = {
   NEW:            'bg-blue-50 text-blue-700 border-blue-200',
@@ -171,6 +172,7 @@ export default function RFQDetails() {
   const businessType  = rfq.businessType  || rfq.guest_business_type
 
   const isLocked = rfq.status === 'CLOSED' || rfq.status === 'DECLINED'
+  const isPostAcceptance = ['AWAITING_PAYMENT','PAYMENT_SUBMITTED','PAYMENT_CONFIRMED','SHIPPED','DELIVERED'].includes(rfq.status)
 
   return (
     <AdminLayout>
@@ -272,6 +274,49 @@ export default function RFQDetails() {
                     ? 'This RFQ has been accepted by the customer and is now closed.'
                     : 'This quotation was declined by the customer.'}
                 </p>
+              </div>
+            )}
+
+            {/* ── POST-ACCEPTANCE: Payment proof + actions ── */}
+            {isPostAcceptance && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-amber-600 text-xl">payments</span>
+                  <div>
+                    <p className="text-sm font-bold text-amber-800">Post-Acceptance Workflow</p>
+                    <p className="text-xs text-amber-600">Status: <strong>{rfq.status?.replace(/_/g,' ')}</strong></p>
+                  </div>
+                </div>
+
+                {/* Payment proof */}
+                {rfq.paymentProof && (
+                  <div className="bg-white rounded-xl border border-amber-200 p-4">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Payment Proof</p>
+                    <div className="flex items-center gap-3">
+                      {rfq.paymentProof.mime_type?.startsWith('image/') ? (
+                        <a href={rfq.paymentProof.file_url} target="_blank" rel="noreferrer">
+                          <img src={rfq.paymentProof.file_url} alt="Payment proof" className="w-20 h-20 object-cover rounded-lg border" />
+                        </a>
+                      ) : (
+                        <a href={rfq.paymentProof.file_url} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/20 rounded-lg text-sm font-semibold text-primary hover:bg-primary/10">
+                          <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                          {rfq.paymentProof.file_name}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Admin actions */}
+                {rfq.status === 'PAYMENT_SUBMITTED' && (
+                  <PaymentActions rfqId={id} qc={qc} />
+                )}
+                {rfq.status === 'PAYMENT_CONFIRMED' && (
+                  <ShipAction rfqId={id} qc={qc} />
+                )}
+              </div>
+            )}
               </div>
             )}
 
@@ -733,6 +778,26 @@ export default function RFQDetails() {
         </div>
       </div>
 
+      {/* RFQ Chat — shown for post-acceptance statuses */}
+      {isPostAcceptance && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-6">
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/30">
+            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">chat</span>
+              Order Chat
+              {rfq.chatUnreadCount > 0 && (
+                <span className="ml-1 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {rfq.chatUnreadCount} new
+                </span>
+              )}
+            </h2>
+          </div>
+          <div className="p-4">
+            <RFQChat rfqId={id} isAdmin={true} isReadOnly={rfq.status === 'DELIVERED'} />
+          </div>
+        </div>
+      )}
+
       {feedbackModal.open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in-up">
@@ -786,5 +851,71 @@ export default function RFQDetails() {
         </div>
       )}
     </AdminLayout>
+  )
+}
+
+// ── Payment action buttons (admin) ────────────────────────────────────────────
+function PaymentActions({ rfqId, qc }) {
+  const [rejectModal, setRejectModal] = useState(false)
+  const [rejectNote, setRejectNote] = useState('')
+
+  const confirmMutation = useMutation({
+    mutationFn: () => api.post(`/admin/rfqs/${rfqId}/confirm-payment`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] }),
+  })
+  const rejectMutation = useMutation({
+    mutationFn: () => api.post(`/admin/rfqs/${rfqId}/reject-payment`, { rejectionNote: rejectNote }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] }); setRejectModal(false) },
+  })
+
+  return (
+    <div className="flex gap-3">
+      <button onClick={() => setRejectModal(true)}
+        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700">
+        <span className="material-symbols-outlined text-base">cancel</span>Reject Proof
+      </button>
+      <button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}
+        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50">
+        {confirmMutation.isPending ? 'Confirming...' : <><span className="material-symbols-outlined text-base">verified</span>Confirm Payment</>}
+      </button>
+      {rejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <h3 className="font-bold text-lg mb-2">Reject Payment Proof</h3>
+            <p className="text-sm text-gray-500 mb-4">Provide a reason so the customer knows what to fix.</p>
+            <textarea rows={3} value={rejectNote} onChange={e => setRejectNote(e.target.value)}
+              placeholder="e.g. Amount doesn't match, wrong account, image unclear..."
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 focus:ring-2 focus:ring-primary/20 outline-none resize-none" />
+            <div className="flex gap-3">
+              <button onClick={() => setRejectModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold">Cancel</button>
+              <button onClick={() => rejectMutation.mutate()} disabled={!rejectNote.trim() || rejectMutation.isPending}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold disabled:opacity-50">
+                {rejectMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Mark as shipped action (admin) ────────────────────────────────────────────
+function ShipAction({ rfqId, qc }) {
+  const [trackingInfo, setTrackingInfo] = useState('')
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/admin/rfqs/${rfqId}/mark-shipped`, { trackingInfo }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-rfq', rfqId] }),
+  })
+  return (
+    <div className="space-y-3">
+      <input type="text" value={trackingInfo} onChange={e => setTrackingInfo(e.target.value)}
+        placeholder="Tracking number / courier info (optional)"
+        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" />
+      <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50">
+        {mutation.isPending ? 'Marking...' : <><span className="material-symbols-outlined text-base">local_shipping</span>Mark as Shipped</>}
+      </button>
+    </div>
   )
 }
