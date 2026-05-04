@@ -39,10 +39,21 @@ export default function CustomerDashboard() {
   const [acceptingRfq, setAcceptingRfq] = useState(null)
   const [decliningRfq, setDecliningRfq] = useState(null)
   const [declineReason, setDeclineReason] = useState('')
+  const [confirmingDelivery, setConfirmingDelivery] = useState(null) // rfq being confirmed
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-rfqs'],
     queryFn: () => api.get('/customer/rfqs').then((r) => r.data),
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+  })
+
+  const confirmDeliveryMutation = useMutation({
+    mutationFn: (rfqId) => api.post(`/customer/rfqs/${rfqId}/confirm-delivery`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-rfqs'] })
+      setConfirmingDelivery(null)
+    },
   })
 
   const acceptMutation = useMutation({
@@ -153,100 +164,171 @@ export default function CustomerDashboard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {data?.slice(0, 5).map((rfq) => (
-              <div key={rfq.id} className={`bg-white rounded-lg p-4 hover:shadow-md transition-all border group ${rfq.status === 'QUOTATION_SENT' ? 'border-green-200 bg-green-50/30' : 'border-gray-100'}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${rfq.status === 'QUOTATION_SENT' ? 'bg-green-100' : 'bg-primary/10'}`}>
-                      <span className={`material-symbols-outlined text-lg ${rfq.status === 'QUOTATION_SENT' ? 'text-green-600' : 'text-primary'}`}>
-                        {rfq.status === 'QUOTATION_SENT' ? 'mark_email_read' : 'medication_liquid'}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-medium text-gray-900">{rfq.rfqNumber}</h3>
-                      <p className="text-sm text-gray-600">
-                        {rfq.itemCount} products · {new Date(rfq.submittedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
+            {data?.slice(0, 5).map((rfq) => {
+              const isShipped         = rfq.status === 'SHIPPED'
+              const isAwaitingPayment = rfq.status === 'AWAITING_PAYMENT'
+              const isQuoted          = rfq.status === 'QUOTATION_SENT'
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[rfq.status]}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[rfq.status]}`} />
-                      {STATUS_LABEL[rfq.status]}
+              return (
+              <div key={rfq.id} className={`bg-white rounded-xl transition-all border group overflow-hidden ${
+                isShipped         ? 'border-indigo-300 shadow-md shadow-indigo-100' :
+                isAwaitingPayment ? 'border-amber-300 shadow-md shadow-amber-100' :
+                isQuoted          ? 'border-green-200 bg-green-50/30' :
+                                    'border-gray-100 hover:shadow-md'
+              }`}>
+
+                {/* ── Action-required top strip ── */}
+                {isShipped && (
+                  <div className="bg-indigo-600 px-4 py-2 flex items-center gap-2">
+                    <span className="relative flex h-2 w-2 flex-shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
                     </span>
+                    <p className="text-xs font-bold text-white flex-1">Your order has been shipped — confirm when received</p>
+                  </div>
+                )}
+                {isAwaitingPayment && (
+                  <div className="bg-amber-500 px-4 py-2 flex items-center gap-2">
+                    <span className="relative flex h-2 w-2 flex-shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                    </span>
+                    <p className="text-xs font-bold text-white flex-1">Action required — upload your payment proof to proceed</p>
+                  </div>
+                )}
 
-                    {rfq.status === 'QUOTATION_SENT' ? (
-                      <>
-                        {/* View Details */}
-                        <Link
-                          to={`/portal/rfqs/${rfq.id}`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-                        >
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Left — icon + info */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isShipped         ? 'bg-indigo-100' :
+                        isAwaitingPayment ? 'bg-amber-100' :
+                        isQuoted          ? 'bg-green-100' : 'bg-primary/10'
+                      }`}>
+                        <span className={`material-symbols-outlined text-lg ${
+                          isShipped         ? 'text-indigo-600' :
+                          isAwaitingPayment ? 'text-amber-600' :
+                          isQuoted          ? 'text-green-600' : 'text-primary'
+                        }`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                          {isShipped         ? 'local_shipping' :
+                           isAwaitingPayment ? 'payments' :
+                           isQuoted          ? 'mark_email_read' : 'medication_liquid'}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-medium text-gray-900">{rfq.rfqNumber}</h3>
+                        <p className="text-sm text-gray-500">
+                          {rfq.itemCount} products · {new Date(rfq.submittedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right — status badge + action buttons */}
+                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                      <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[rfq.status]}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[rfq.status]}`} />
+                        {STATUS_LABEL[rfq.status]}
+                      </span>
+
+                      {/* SHIPPED — primary CTA right on the card */}
+                      {isShipped && (
+                        <>
+                          <Link to={`/portal/rfqs/${rfq.id}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+                            <span className="material-symbols-outlined text-sm">visibility</span>
+                            View
+                          </Link>
+                          <button
+                            onClick={() => setConfirmingDelivery(rfq)}
+                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-colors shadow-sm"
+                          >
+                            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            Confirm Delivery
+                          </button>
+                        </>
+                      )}
+
+                      {/* AWAITING_PAYMENT — direct link to payment section */}
+                      {isAwaitingPayment && (
+                        <>
+                          <Link to={`/portal/rfqs/${rfq.id}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+                            <span className="material-symbols-outlined text-sm">visibility</span>
+                            View
+                          </Link>
+                          <Link
+                            to={`/portal/rfqs/${rfq.id}`}
+                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors shadow-sm"
+                          >
+                            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>upload_file</span>
+                            Upload Payment
+                          </Link>
+                        </>
+                      )}
+
+                      {/* QUOTATION_SENT — accept / decline */}
+                      {isQuoted && (
+                        <>
+                          <Link to={`/portal/rfqs/${rfq.id}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+                            <span className="material-symbols-outlined text-sm">visibility</span>
+                            View
+                          </Link>
+                          <button onClick={() => downloadPDF(rfq)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-container transition-colors">
+                            <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                            PDF
+                          </button>
+                          <button onClick={() => setDecliningRfq(rfq)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-colors shadow-sm">
+                            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
+                            Decline
+                          </button>
+                          <button onClick={() => setAcceptingRfq(rfq)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+                            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            Accept
+                          </button>
+                        </>
+                      )}
+
+                      {/* All other statuses — just View */}
+                      {!isShipped && !isAwaitingPayment && !isQuoted && (
+                        <Link to={`/portal/rfqs/${rfq.id}`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
                           <span className="material-symbols-outlined text-sm">visibility</span>
                           View
                         </Link>
-                        {/* Download PDF */}
-                        <button
-                          onClick={() => downloadPDF(rfq)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-container transition-colors"
-                          title="Download Quotation PDF"
-                        >
-                          <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
-                          PDF
-                        </button>
-                        {/* Decline Quotation */}
-                        <button
-                          onClick={() => setDecliningRfq(rfq)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-colors shadow-sm"
-                          title="Decline this quotation"
-                        >
-                          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
-                          Decline
-                        </button>
-                        {/* Accept Quotation */}
-                        <button
-                          onClick={() => setAcceptingRfq(rfq)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm"
-                          title="Accept this quotation"
-                        >
-                          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                          Accept
-                        </button>
-                      </>
-                    ) : (
-                      <Link
-                        to={`/portal/rfqs/${rfq.id}`}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-sm">visibility</span>
-                        View
-                      </Link>
-                    )}
+                      )}
+                    </div>
                   </div>
+
+                  {/* ── Contextual hint strips ── */}
+                  {isQuoted && (
+                    <div className="mt-3 pt-3 border-t border-green-200 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-green-600 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                      <p className="text-xs text-green-700 font-medium">
+                        Your quotation is ready. Download the PDF to review pricing, then <strong>Accept</strong> or <strong>Decline</strong>.
+                      </p>
+                    </div>
+                  )}
+                  {rfq.status === 'DECLINED' && rfq.declineReason && (
+                    <div className="mt-3 pt-3 border-t border-red-100 flex items-start gap-2">
+                      <span className="material-symbols-outlined text-red-500 text-sm flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+                      <p className="text-xs text-red-700"><span className="font-bold">Reason: </span>{rfq.declineReason}</p>
+                    </div>
+                  )}
+                  {rfq.status === 'PAYMENT_SUBMITTED' && (
+                    <div className="mt-3 pt-3 border-t border-blue-100 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-blue-500 text-sm animate-spin">progress_activity</span>
+                      <p className="text-xs text-blue-700 font-medium">Payment proof received — our team is reviewing it.</p>
+                    </div>
+                  )}
                 </div>
-
-                {/* Quoted action hint */}
-                {rfq.status === 'QUOTATION_SENT' && (
-                  <div className="mt-3 pt-3 border-t border-green-200 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-green-600 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
-                    <p className="text-xs text-green-700 font-medium">
-                      Your quotation is ready. Download the PDF to review pricing, then click <strong>Accept</strong> to confirm or <strong>Decline</strong> to reject.
-                    </p>
-                  </div>
-                )}
-
-                {/* Decline reason */}
-                {rfq.status === 'DECLINED' && rfq.declineReason && (
-                  <div className="mt-3 pt-3 border-t border-red-100 flex items-start gap-2">
-                    <span className="material-symbols-outlined text-red-500 text-sm flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
-                    <p className="text-xs text-red-700">
-                      <span className="font-bold">Reason: </span>{rfq.declineReason}
-                    </p>
-                  </div>
-                )}
               </div>
-            ))}
+              )
+            })}
             
             {data?.length > 5 && (
               <div className="text-center pt-4">
@@ -258,6 +340,61 @@ export default function CustomerDashboard() {
           </div>
         )}
       </section>
+
+      {/* ── Confirm Delivery Modal ─────────────────────────────────────────── */}
+      {confirmingDelivery && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-indigo-600 text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>local_shipping</span>
+              </div>
+              <div>
+                <h2 className="font-headline font-extrabold text-xl text-gray-900">Confirm Delivery?</h2>
+                <p className="text-sm text-gray-500 font-mono">{confirmingDelivery.rfqNumber}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+              By confirming, you acknowledge that you have physically received all items for this order. This will mark the order as <strong className="text-emerald-700">Delivered</strong> and close the transaction.
+            </p>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+              <span className="material-symbols-outlined text-amber-600 text-lg flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
+              <p className="text-sm text-amber-800 font-medium">
+                Only confirm if you have received and inspected your order. This action cannot be undone.
+              </p>
+            </div>
+
+            {confirmDeliveryMutation.isError && (
+              <p className="text-sm text-red-600 mb-4 bg-red-50 px-4 py-2 rounded-lg border border-red-200">
+                Something went wrong. Please try again.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setConfirmingDelivery(null); confirmDeliveryMutation.reset() }}
+                disabled={confirmDeliveryMutation.isPending}
+                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Not Yet
+              </button>
+              <button
+                onClick={() => confirmDeliveryMutation.mutate(confirmingDelivery.id)}
+                disabled={confirmDeliveryMutation.isPending}
+                className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {confirmDeliveryMutation.isPending ? (
+                  <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span> Processing...</>
+                ) : (
+                  <><span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span> Yes, Received</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Decline Confirmation Modal ──────────────────────────────────────── */}
       {decliningRfq && (

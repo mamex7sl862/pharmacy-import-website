@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast, { Toaster } from 'react-hot-toast'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../lib/api'
@@ -9,23 +9,32 @@ export default function AdminNotificationListener() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const qc = useQueryClient()
 
-  // Track last-seen IDs so we fire on genuinely new items, not count changes
   const lastStateRef = useRef({
-    chatMsgAt: {},       // { chatId: lastMsgAt timestamp }
+    chatMsgAt: {},
     latestRfqId: null,
     latestPaymentId: null,
   })
+
+  // Invalidate all admin data so lists/dashboard refresh immediately
+  const invalidateAdminData = () => {
+    qc.invalidateQueries({ queryKey: ['admin-rfqs'] })
+    qc.invalidateQueries({ queryKey: ['admin-rfqs-dash'] })
+    qc.invalidateQueries({ queryKey: ['admin-pending-payments-dash'] })
+    qc.invalidateQueries({ queryKey: ['admin-new-rfqs-count'] })
+  }
 
   // ── Poll: unread chat messages ────────────────────────────────────────────
   const { data: sessions = [] } = useQuery({
     queryKey: ['admin-chat-notifications'],
     queryFn: () => api.get('/chat/admin/sessions').then(r => r.data),
     refetchInterval: 5000,
+    refetchIntervalInBackground: true,
     enabled: !!user && user.role === 'admin',
   })
 
-  // ── Poll: new RFQs (status=NEW) ───────────────────────────────────────────
+  // ── Poll: new RFQs ────────────────────────────────────────────────────────
   const { data: rfqStats } = useQuery({
     queryKey: ['admin-rfq-notifications'],
     queryFn: () => api.get('/admin/rfqs?status=NEW&limit=1').then(r => ({
@@ -33,6 +42,7 @@ export default function AdminNotificationListener() {
       latest: r.data.items?.[0] || null,
     })),
     refetchInterval: 10000,
+    refetchIntervalInBackground: true,
     enabled: !!user && user.role === 'admin',
   })
 
@@ -44,6 +54,7 @@ export default function AdminNotificationListener() {
       latest: r.data.items?.[0] || null,
     })),
     refetchInterval: 8000,
+    refetchIntervalInBackground: true,
     enabled: !!user && user.role === 'admin',
   })
 
@@ -81,18 +92,22 @@ export default function AdminNotificationListener() {
 
   // ── New RFQ notifications ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!rfqStats?.latest) return
-    const prevId = lastStateRef.current.latestRfqId
-    const currId = rfqStats.latest.id
+    if (!rfqStats) return
 
-    // First load — seed the ref, don't fire
+    const prevId = lastStateRef.current.latestRfqId
+    const currId = rfqStats.latest?.id ?? null
+
+    // First load — seed ref and refresh data, no toast
     if (prevId === null) {
       lastStateRef.current.latestRfqId = currId
+      invalidateAdminData()
       return
     }
 
-    if (currId !== prevId) {
+    if (currId && currId !== prevId) {
       lastStateRef.current.latestRfqId = currId
+      invalidateAdminData()
+
       if (!location.pathname.startsWith('/admin/rfqs')) {
         toast.custom((t) => (
           <div
@@ -116,30 +131,29 @@ export default function AdminNotificationListener() {
         ), { duration: 8000, position: 'top-right' })
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rfqStats, location.pathname, navigate])
 
   // ── Payment proof notifications ───────────────────────────────────────────
   useEffect(() => {
     if (!paymentStats) return
 
-    // No submissions yet — seed null and return
-    if (!paymentStats.latest) {
-      lastStateRef.current.latestPaymentId = null
-      return
-    }
-
     const prevId = lastStateRef.current.latestPaymentId
-    const currId = paymentStats.latest.id
+    const currId = paymentStats.latest?.id ?? null
 
-    // First load — seed the ref, don't fire
+    // First load — seed ref and refresh data, no toast
     if (prevId === null) {
       lastStateRef.current.latestPaymentId = currId
+      invalidateAdminData()
       return
     }
 
-    if (currId !== prevId) {
+    if (currId && currId !== prevId) {
       lastStateRef.current.latestPaymentId = currId
-      if (!location.pathname.startsWith('/admin/rfqs')) {
+      invalidateAdminData()
+
+      const isViewingRfq = location.pathname === `/admin/rfqs/${paymentStats.latest?.id}`
+      if (!isViewingRfq) {
         toast.custom((t) => (
           <div
             className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex items-start ring-1 ring-black/5 p-4 gap-3 cursor-pointer hover:bg-gray-50 transition-colors`}
@@ -165,6 +179,7 @@ export default function AdminNotificationListener() {
         ), { duration: 10000, position: 'top-right' })
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentStats, location.pathname, navigate])
 
   return <Toaster />
