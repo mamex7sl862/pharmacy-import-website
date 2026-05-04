@@ -14,7 +14,18 @@ export function useSiteContent(section, defaultData) {
     staleTime: 0,           // always fresh
     gcTime: 1000 * 60 * 2,  // keep in memory 2 min
   })
-  return data ?? defaultData
+
+  // If defaultData is an array, only use API data if it's also a non-empty array
+  if (Array.isArray(defaultData)) {
+    return (Array.isArray(data) && data.length > 0) ? data : defaultData
+  }
+
+  // For objects, use API data only if it has keys
+  if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) {
+    return data
+  }
+
+  return defaultData
 }
 
 /**
