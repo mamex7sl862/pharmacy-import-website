@@ -267,6 +267,29 @@ app.listen(PORT, async () => {
 
     const result = await pool.query('SELECT COUNT(*) FROM products')
     console.log(`✅ Database connected — ${result.rows[0].count} products in catalog`)
+
+    // ── SMTP startup check ────────────────────────────────────────────────
+    const nodemailer = require('nodemailer')
+    const resendKey = process.env.RESEND_API_KEY
+    if (resendKey) {
+      console.log('📧 Email: using Resend (RESEND_API_KEY is set)')
+    } else if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        })
+        await transporter.verify()
+        console.log(`✅ SMTP connected — sending from ${process.env.SMTP_USER}`)
+      } catch (smtpErr) {
+        console.error('❌ SMTP connection failed:', smtpErr.message)
+        console.error('   Check SMTP_HOST, SMTP_USER, SMTP_PASS in environment variables')
+      }
+    } else {
+      console.warn('⚠️  No email provider configured — emails will be skipped')
+    }
   } catch (err) {
     console.error('❌ Database connection failed:', err.message)
     console.error('   Check DATABASE_URL in backend/.env')
