@@ -32,11 +32,15 @@ function getSmtpTransporter() {
 // ── Generic send ──────────────────────────────────────────────────────────────
 async function sendMail({ to, subject, html }) {
   const resend = getResend()
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@pharmalinkwholesale.com'
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'onboarding@resend.dev'
 
   if (resend) {
-    // Use Resend (works on Render)
-    const { error } = await resend.emails.send({ from: `PharmaLink Wholesale <${from}>`, to, subject, html })
+    // Use Resend — works on Render (HTTPS, no port blocking)
+    // Use onboarding@resend.dev as sender if no custom domain is verified
+    const sender = from.includes('resend.dev') || !from.includes('@')
+      ? 'PharmaLink Wholesale <onboarding@resend.dev>'
+      : `PharmaLink Wholesale <${from}>`
+    const { error } = await resend.emails.send({ from: sender, to, subject, html })
     if (error) throw new Error(error.message)
     return
   }
