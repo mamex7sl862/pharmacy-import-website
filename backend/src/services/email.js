@@ -11,6 +11,36 @@ function getResend() {
   }
 }
 
+// ── Brevo (HTTP API — works on Render, no domain required, 300/day free) ──────
+async function sendViaBrevo({ to, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY
+  if (!apiKey) return false
+
+  const senderEmail = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || 'noreply@pharmalinkwholesale.com'
+  const senderName  = 'PharmaLink Wholesale'
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept':       'application/json',
+      'api-key':      apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender:      { name: senderName, email: senderEmail },
+      to:          [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(`Brevo error: ${err.message || response.statusText}`)
+  }
+  return true
+}
+
 // ── SMTP fallback (nodemailer) ────────────────────────────────────────────────
 function getSmtpTransporter() {
   if (
@@ -29,29 +59,32 @@ function getSmtpTransporter() {
   })
 }
 
-// ── Generic send ──────────────────────────────────────────────────────────────
+// ── Generic send — priority: Brevo → Resend → SMTP ───────────────────────────
 async function sendMail({ to, subject, html }) {
-  const resend = getResend()
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'onboarding@resend.dev'
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@pharmalinkwholesale.com'
 
+  // 1. Try Brevo (HTTPS API — works on Render, sends to any email)
+  if (process.env.BREVO_API_KEY) {
+    await sendViaBrevo({ to, subject, html })
+    return
+  }
+
+  // 2. Try Resend (HTTPS API — free plan limited to verified recipients)
+  const resend = getResend()
   if (resend) {
-    // Use Resend — works on Render (HTTPS, no port blocking)
-    // Use onboarding@resend.dev as sender if no custom domain is verified
-    const sender = from.includes('resend.dev') || !from.includes('@')
-      ? 'PharmaLink Wholesale <onboarding@resend.dev>'
-      : `PharmaLink Wholesale <${from}>`
+    const sender = `PharmaLink Wholesale <${from}>`
     const { error } = await resend.emails.send({ from: sender, to, subject, html })
     if (error) throw new Error(error.message)
     return
   }
 
+  // 3. SMTP fallback (blocked on Render free tier)
   const transporter = getSmtpTransporter()
   if (transporter) {
     await transporter.sendMail({ from: `"PharmaLink Wholesale" <${from}>`, to, subject, html })
     return
   }
 
-  // No email provider configured — log and skip
   console.log(`[EMAIL SKIPPED] No provider configured. To: ${to} | Subject: ${subject}`)
 }
 
