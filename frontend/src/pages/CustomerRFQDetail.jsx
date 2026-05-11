@@ -303,19 +303,62 @@ export default function CustomerRFQDetail() {
                 )}
 
                 <div className="grid md:grid-cols-2 gap-0 md:divide-x divide-gray-100">
-                  {/* Left — payment instructions */}
+                  {/* Left — payment instructions + account details */}
                   <div className="px-6 py-5">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">How to Pay</p>
-                    <ol className="space-y-4">
+
+                    {/* Payment account details */}
+                    <div className="space-y-3 mb-5">
+                      {/* CBE */}
+                      <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                          <span className="material-symbols-outlined text-white text-sm">account_balance</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Commercial Bank of Ethiopia</p>
+                          <p className="text-base font-mono font-bold text-blue-900 mt-0.5 tracking-wider">1000529388997</p>
+                          <p className="text-[10px] text-blue-600 mt-0.5">CBE Account Number</p>
+                        </div>
+                        <button
+                          onClick={() => navigator.clipboard.writeText('1000529388997')}
+                          className="flex-shrink-0 p-1.5 text-blue-400 hover:text-blue-700 transition-colors"
+                          title="Copy account number"
+                        >
+                          <span className="material-symbols-outlined text-sm">content_copy</span>
+                        </button>
+                      </div>
+
+                      {/* Telebirr */}
+                      <div className="flex items-start gap-3 p-3 bg-purple-50 border border-purple-100 rounded-xl">
+                        <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center flex-shrink-0">
+                          <span className="material-symbols-outlined text-white text-sm">phone_iphone</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-purple-800 uppercase tracking-wide">Telebirr</p>
+                          <p className="text-base font-mono font-bold text-purple-900 mt-0.5 tracking-wider">0940034745</p>
+                          <p className="text-[10px] text-purple-600 mt-0.5">Telebirr Number</p>
+                        </div>
+                        <button
+                          onClick={() => navigator.clipboard.writeText('0940034745')}
+                          className="flex-shrink-0 p-1.5 text-purple-400 hover:text-purple-700 transition-colors"
+                          title="Copy Telebirr number"
+                        >
+                          <span className="material-symbols-outlined text-sm">content_copy</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Steps */}
+                    <ol className="space-y-3">
                       {[
-                        { icon: "account_balance", label: "Bank Transfer",   desc: "Transfer the exact amount to our bank account. Ask us via chat below for bank details." },
+                        { icon: "account_balance", label: "Transfer Payment",  desc: "Send the exact amount to our CBE account or Telebirr number above." },
                         { icon: "receipt_long",    label: "Save Your Receipt", desc: "Keep your transfer receipt or take a screenshot of the confirmation." },
-                        { icon: "cloud_upload",    label: "Upload Proof",     desc: "Upload the receipt using the form on the right. Accepted: JPEG, PNG, PDF." },
-                        { icon: "verified",        label: "Confirmation",     desc: "Our team reviews within 1 business day and confirms your order." },
+                        { icon: "cloud_upload",    label: "Upload Proof",      desc: "Upload the receipt using the form on the right. Accepted: JPEG, PNG, PDF." },
+                        { icon: "verified",        label: "Confirmation",      desc: "Our team reviews within 1 business day and confirms your order." },
                       ].map((step, i) => (
                         <li key={i} className="flex items-start gap-3">
-                          <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="material-symbols-outlined text-amber-600 text-sm">{step.icon}</span>
+                          <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="material-symbols-outlined text-amber-600 text-xs">{step.icon}</span>
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-gray-800">{step.label}</p>
