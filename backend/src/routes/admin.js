@@ -532,8 +532,10 @@ router.patch('/products/:id/publish', async (req, res, next) => {
 
 router.delete('/products/:id', async (req, res, next) => {
   try {
-    await pool.query('UPDATE products SET is_active = false, updated_at = NOW() WHERE id = $1', [req.params.id])
-    res.json({ success: true })
+    const { rows } = await pool.query('SELECT id, name FROM products WHERE id = $1', [req.params.id])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    await pool.query('DELETE FROM products WHERE id = $1', [req.params.id])
+    res.json({ success: true, deleted: rows[0].name })
   } catch (err) { next(err) }
 })
 

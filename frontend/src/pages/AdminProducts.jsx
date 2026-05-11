@@ -471,10 +471,10 @@ export default function AdminProducts() {
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
-            <span className="material-symbols-outlined text-error text-4xl mb-4 block" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Deactivate Product?</h3>
+            <span className="material-symbols-outlined text-error text-4xl mb-4 block" style={{ fontVariationSettings: "'FILL' 1" }}>delete_forever</span>
+            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Delete Product?</h3>
             <p className="text-sm text-on-surface-variant mb-6">
-              "{deleteConfirm.name}" will be hidden from the catalog. This can be undone by editing the product.
+              "<strong>{deleteConfirm.name}</strong>" will be permanently removed from the catalog. This cannot be undone.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 rounded-xl border border-outline-variant text-on-surface font-bold hover:bg-surface-container transition-colors">
@@ -485,7 +485,7 @@ export default function AdminProducts() {
                 disabled={deleteProduct.isPending}
                 className="flex-1 py-2.5 rounded-xl bg-error text-white font-bold hover:opacity-90 transition-colors disabled:opacity-50"
               >
-                {deleteProduct.isPending ? 'Removing...' : 'Deactivate'}
+                {deleteProduct.isPending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
