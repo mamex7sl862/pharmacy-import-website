@@ -531,12 +531,24 @@ router.patch('/products/:id/publish', async (req, res, next) => {
 })
 
 router.delete('/products/:id', async (req, res, next) => {
+  const client = await pool.connect()
   try {
-    const { rows } = await pool.query('SELECT id, name FROM products WHERE id = $1', [req.params.id])
+    const { rows } = await client.query('SELECT id, name FROM products WHERE id = $1', [req.params.id])
     if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
-    await pool.query('DELETE FROM products WHERE id = $1', [req.params.id])
+
+    await client.query('BEGIN')
+    // Nullify product_id references in rfq_items so the product can be deleted
+    await client.query('UPDATE rfq_items SET product_id = NULL WHERE product_id = $1', [req.params.id])
+    await client.query('DELETE FROM products WHERE id = $1', [req.params.id])
+    await client.query('COMMIT')
+
     res.json({ success: true, deleted: rows[0].name })
-  } catch (err) { next(err) }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    next(err)
+  } finally {
+    client.release()
+  }
 })
 
 // ── Site Content CRUD ─────────────────────────────────────────────────────────
