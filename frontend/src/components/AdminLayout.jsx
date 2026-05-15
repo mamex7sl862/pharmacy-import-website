@@ -8,9 +8,11 @@ const NAV = [
   { to: '/admin',           icon: 'dashboard',       label: 'Dashboard' },
   { to: '/admin/rfqs',      icon: 'request_quote',   label: 'RFQ Management' },
   { to: '/admin/products',  icon: 'inventory_2',     label: 'Products' },
+  { to: '/admin/users',     icon: 'group',           label: 'Users' },
   { to: '/admin/content',   icon: 'edit_note',       label: 'Content' },
   { to: '/admin/chat',      icon: 'chat',            label: 'Live Chat' },
   { to: '/admin/messages',  icon: 'mark_email_read', label: 'Contact Messages' },
+  { to: '/admin/settings',  icon: 'settings',        label: 'Settings' },
 ]
 
 export default function AdminLayout({ children, title, subtitle }) {

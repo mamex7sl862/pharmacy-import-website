@@ -67,6 +67,58 @@ router.put('/profile', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// PATCH /api/customer/account/email
+router.patch('/account/email', async (req, res, next) => {
+  try {
+    const { newEmail, password } = req.body
+    if (!newEmail || !password) return res.status(400).json({ error: 'VALIDATION_ERROR' })
+
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+
+    const bcrypt = require('bcrypt')
+    const valid = await bcrypt.compare(password, rows[0].password_hash)
+    if (!valid) return res.status(401).json({ error: 'WRONG_PASSWORD' })
+
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [newEmail, req.user.id])
+    if (exists.rows.length) return res.status(409).json({ error: 'EMAIL_EXISTS' })
+
+    const { rows: updated } = await pool.query(
+      'UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, full_name AS "fullName", company_name AS "companyName", business_type AS "businessType", phone, country, city, role',
+      [newEmail, req.user.id]
+    )
+
+    // Issue a new JWT with the updated email
+    const jwt = require('jsonwebtoken')
+    const accessToken = jwt.sign(
+      { id: updated[0].id, email: updated[0].email, role: updated[0].role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+    res.json({ success: true, accessToken, user: updated[0] })
+  } catch (err) { next(err) }
+})
+
+// PATCH /api/customer/account/password
+router.patch('/account/password', async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'VALIDATION_ERROR' })
+    if (newPassword.length < 8) return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' })
+
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+
+    const bcrypt = require('bcrypt')
+    const valid = await bcrypt.compare(currentPassword, rows[0].password_hash)
+    if (!valid) return res.status(401).json({ error: 'WRONG_PASSWORD' })
+
+    const newHash = await bcrypt.hash(newPassword, 12)
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id])
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
 // GET /api/customer/rfqs
 router.get('/rfqs', async (req, res, next) => {
   try {

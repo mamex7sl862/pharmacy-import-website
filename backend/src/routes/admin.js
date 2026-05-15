@@ -757,4 +757,166 @@ router.post('/rfqs/:id/chat/messages', async (req, res, next) => {
 
 // Admin testimonials (proxied through content routes) — REMOVED (duplicates above)
 
+// ── User Management ───────────────────────────────────────────────────────────
+
+// GET /api/admin/users
+router.get('/users', async (req, res, next) => {
+  try {
+    let { search, role, status, page = 1, limit = 20 } = req.query
+    page  = Math.max(1, parseInt(page))
+    limit = Math.min(100, parseInt(limit))
+    const offset = (page - 1) * limit
+
+    const conditions = ["u.role != 'admin' OR u.role = 'admin'"] // always true base
+    const params = []
+
+    if (search) {
+      params.push(`%${search}%`)
+      conditions.push(`(u.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR u.company_name ILIKE $${params.length})`)
+    }
+    if (role && ['customer', 'admin'].includes(role)) {
+      params.push(role)
+      conditions.push(`u.role = $${params.length}`)
+    }
+    if (status === 'active')   { conditions.push('u.is_active = true') }
+    if (status === 'inactive') { conditions.push('u.is_active = false') }
+
+    const where = `WHERE ${conditions.join(' AND ')}`
+
+    const countResult = await pool.query(`SELECT COUNT(*) FROM users u ${where}`, params)
+
+    params.push(limit, offset)
+    const { rows } = await pool.query(
+      `SELECT u.id, u.email, u.full_name AS "fullName", u.company_name AS "companyName",
+              u.business_type AS "businessType", u.phone, u.country, u.city,
+              u.role, u.is_active AS "isActive", u.created_at AS "createdAt",
+              COUNT(r.id)::int AS "rfqCount"
+       FROM users u
+       LEFT JOIN rfqs r ON r.customer_id = u.id
+       ${where}
+       GROUP BY u.id
+       ORDER BY u.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    )
+
+    res.json({ items: rows, totalCount: parseInt(countResult.rows[0].count), page, limit })
+  } catch (err) { next(err) }
+})
+
+// PATCH /api/admin/users/:id/toggle-active — activate / deactivate
+router.patch('/users/:id/toggle-active', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET is_active = NOT is_active, updated_at = NOW()
+       WHERE id = $1 RETURNING id, is_active AS "isActive", full_name AS "fullName"`,
+      [req.params.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    res.json({ success: true, isActive: rows[0].isActive, fullName: rows[0].fullName })
+  } catch (err) { next(err) }
+})
+
+// DELETE /api/admin/users/:id
+router.delete('/users/:id', async (req, res, next) => {
+  const client = await pool.connect()
+  try {
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'CANNOT_DELETE_SELF' })
+    const { rows } = await client.query('SELECT id, full_name FROM users WHERE id = $1', [req.params.id])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+
+    await client.query('BEGIN')
+
+    // 1. Preserve RFQ history — convert to guest records
+    await client.query(
+      `UPDATE rfqs SET
+         guest_full_name = COALESCE(guest_full_name, (SELECT full_name   FROM users WHERE id = $1)),
+         guest_email     = COALESCE(guest_email,     (SELECT email       FROM users WHERE id = $1)),
+         guest_company   = COALESCE(guest_company,   (SELECT company_name FROM users WHERE id = $1)),
+         customer_id     = NULL
+       WHERE customer_id = $1`,
+      [req.params.id]
+    )
+
+    // 2. Remove password reset tokens
+    await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [req.params.id])
+
+    // 3. Nullify sender references in chat messages
+    await client.query('UPDATE chat_messages SET sender_id = NULL WHERE sender_id = $1', [req.params.id])
+    await client.query('UPDATE rfq_chat_messages SET sender_id = NULL WHERE sender_id = $1', [req.params.id])
+
+    // 4. Reassign or close chats owned by this user
+    await client.query('UPDATE chats SET customer_id = NULL WHERE customer_id = $1', [req.params.id])
+    await client.query('UPDATE rfq_chats SET customer_id = NULL WHERE customer_id = $1', [req.params.id])
+
+    // 5. Delete the user
+    await client.query('DELETE FROM users WHERE id = $1', [req.params.id])
+
+    await client.query('COMMIT')
+    res.json({ success: true, deleted: rows[0].full_name })
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    console.error('[DELETE USER ERROR]', err.message)
+    next(err)
+  } finally {
+    client.release()
+  }
+})
+
+// ── Admin Account — change email / password ───────────────────────────────────
+
+// PATCH /api/admin/account/email
+router.patch('/account/email', async (req, res, next) => {
+  try {
+    const { newEmail, password } = req.body
+    if (!newEmail || !password) return res.status(400).json({ error: 'VALIDATION_ERROR' })
+
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    const bcrypt = require('bcrypt')
+    const valid = await bcrypt.compare(password, rows[0].password_hash)
+    if (!valid) return res.status(401).json({ error: 'WRONG_PASSWORD' })
+
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [newEmail, req.user.id])
+    if (exists.rows.length) return res.status(409).json({ error: 'EMAIL_EXISTS' })
+
+    const { rows: updated } = await pool.query(
+      'UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, full_name, role',
+      [newEmail, req.user.id]
+    )
+
+    // Issue a new JWT with the updated email so the client stays logged in
+    const jwt = require('jsonwebtoken')
+    const accessToken = jwt.sign(
+      { id: updated[0].id, email: updated[0].email, role: updated[0].role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+    res.json({
+      success: true,
+      accessToken,
+      user: { id: updated[0].id, email: updated[0].email, fullName: updated[0].full_name, role: updated[0].role },
+    })
+  } catch (err) { next(err) }
+})
+
+// PATCH /api/admin/account/password
+router.patch('/account/password', async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'VALIDATION_ERROR' })
+    if (newPassword.length < 8) return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' })
+
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id])
+    if (!rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+    const bcrypt = require('bcrypt')
+    const valid = await bcrypt.compare(currentPassword, rows[0].password_hash)
+    if (!valid) return res.status(401).json({ error: 'WRONG_PASSWORD' })
+
+    const newHash = await bcrypt.hash(newPassword, 12)
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id])
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
 module.exports = router

@@ -1,29 +1,147 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
+import AdminLayout from '../components/AdminLayout'
+import useAuthStore from '../store/authStore'
 
-function AdminSidebar() {
+// ── Account Settings Tab ──────────────────────────────────────────────────────
+function AccountTab() {
+  const { setAuth } = useAuthStore()
+  const navigate = useNavigate()
+  const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' })
+  const [passForm,  setPassForm]  = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [emailMsg,  setEmailMsg]  = useState(null)
+  const [passMsg,   setPassMsg]   = useState(null)
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [passLoading,  setPassLoading]  = useState(false)
+
+  const handleEmailChange = async (e) => {
+    e.preventDefault()
+    if (!emailForm.newEmail || !emailForm.password) return
+    setEmailLoading(true); setEmailMsg(null)
+    try {
+      const res = await api.patch('/admin/account/email', emailForm)
+      // Backend returns a new token — update auth store so we stay logged in
+      if (res.data.accessToken) {
+        setAuth(res.data.user, res.data.accessToken)
+      }
+      setEmailMsg({ type: 'success', text: `Email updated to ${emailForm.newEmail}` })
+      setEmailForm({ newEmail: '', password: '' })
+    } catch (err) {
+      const code = err?.response?.data?.error
+      setEmailMsg({ type: 'error', text:
+        code === 'WRONG_PASSWORD' ? 'Current password is incorrect.' :
+        code === 'EMAIL_EXISTS'   ? 'That email is already in use.' :
+        'Failed to update email. Please try again.'
+      })
+    } finally { setEmailLoading(false) }
+  }
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault()
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      setPassMsg({ type: 'error', text: 'New passwords do not match.' }); return
+    }
+    if (passForm.newPassword.length < 8) {
+      setPassMsg({ type: 'error', text: 'Password must be at least 8 characters.' }); return
+    }
+    setPassLoading(true); setPassMsg(null)
+    try {
+      await api.patch('/admin/account/password', {
+        currentPassword: passForm.currentPassword,
+        newPassword: passForm.newPassword,
+      })
+      setPassMsg({ type: 'success', text: 'Password updated successfully.' })
+      setPassForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      const code = err?.response?.data?.error
+      setPassMsg({ type: 'error', text:
+        code === 'WRONG_PASSWORD' ? 'Current password is incorrect.' :
+        'Failed to update password. Please try again.'
+      })
+    } finally { setPassLoading(false) }
+  }
+
   return (
-    <aside className="hidden md:flex fixed left-0 top-0 h-screen w-72 bg-slate-50 flex-col py-8 z-40 pt-24">
-      <div className="px-8 mb-6">
-        <h2 className="font-headline font-bold text-lg text-primary">Admin Portal</h2>
-        <p className="text-xs text-slate-500 uppercase tracking-wide">Pharma Distribution</p>
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h2 className="font-headline font-bold text-xl text-on-surface">Account Settings</h2>
+        <p className="text-sm text-on-surface-variant">Update your admin login credentials.</p>
       </div>
-      <nav className="flex flex-col space-y-1">
-        {[
-          { to: '/admin',          icon: 'dashboard',     label: 'Dashboard' },
-          { to: '/admin/rfqs',     icon: 'request_quote', label: 'RFQ Management' },
-          { to: '/admin/products', icon: 'inventory_2',   label: 'Products' },
-          { to: '/admin/settings', icon: 'settings',      label: 'Content & Settings', active: true },
-        ].map((item) => (
-          <Link key={item.to} to={item.to} className={`flex items-center gap-4 py-3 transition-all ${item.active ? 'bg-white text-primary font-bold rounded-l-full ml-4 pl-4 shadow-sm' : 'text-slate-500 pl-8 hover:text-primary'}`}>
-            <span className="material-symbols-outlined">{item.icon}</span>
-            <span className="font-medium text-sm">{item.label}</span>
-          </Link>
-        ))}
-      </nav>
-    </aside>
+
+      {/* Change Email */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
+        <h3 className="font-headline font-bold text-on-surface flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary">alternate_email</span>
+          Change Email Address
+        </h3>
+        <form onSubmit={handleEmailChange} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-outline uppercase tracking-widest">New Email Address</label>
+            <input type="email" value={emailForm.newEmail}
+              onChange={e => setEmailForm(f => ({ ...f, newEmail: e.target.value }))}
+              placeholder="new@email.com" className="input-field" required />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-outline uppercase tracking-widest">Current Password (to confirm)</label>
+            <input type="password" value={emailForm.password}
+              onChange={e => setEmailForm(f => ({ ...f, password: e.target.value }))}
+              placeholder="Enter your current password" className="input-field" required />
+          </div>
+          {emailMsg && (
+            <p className={`text-sm px-4 py-2 rounded-lg ${emailMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {emailMsg.text}
+            </p>
+          )}
+          <button type="submit" disabled={emailLoading}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50">
+            {emailLoading
+              ? <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span>Updating...</>
+              : 'Update Email'}
+          </button>
+        </form>
+      </div>
+
+      {/* Change Password */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
+        <h3 className="font-headline font-bold text-on-surface flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary">lock</span>
+          Change Password
+        </h3>
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-outline uppercase tracking-widest">Current Password</label>
+            <input type="password" value={passForm.currentPassword}
+              onChange={e => setPassForm(f => ({ ...f, currentPassword: e.target.value }))}
+              placeholder="Enter current password" className="input-field" required />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-outline uppercase tracking-widest">New Password</label>
+            <input type="password" value={passForm.newPassword}
+              onChange={e => setPassForm(f => ({ ...f, newPassword: e.target.value }))}
+              placeholder="Min. 8 characters" className="input-field" required />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-outline uppercase tracking-widest">Confirm New Password</label>
+            <input type="password" value={passForm.confirmPassword}
+              onChange={e => setPassForm(f => ({ ...f, confirmPassword: e.target.value }))}
+              placeholder="Repeat new password" className="input-field" required />
+          </div>
+          {passMsg && (
+            <p className={`text-sm px-4 py-2 rounded-lg ${passMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {passMsg.text}
+            </p>
+          )}
+          <button type="submit" disabled={passLoading}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50">
+            {passLoading
+              ? <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span>Updating...</>
+              : 'Update Password'}
+          </button>
+        </form>
+      </div>
+    </div>
   )
 }
 
@@ -40,17 +158,15 @@ function TestimonialsTab() {
 
   const createMutation = useMutation({
     mutationFn: (data) => api.post('/admin/testimonials', data),
-    onSuccess: () => { qc.invalidateQueries(['admin-testimonials']); setModal(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-testimonials'] }); setModal(null) },
   })
-
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }) => api.put(`/admin/testimonials/${id}`, data),
-    onSuccess: () => { qc.invalidateQueries(['admin-testimonials']); setModal(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-testimonials'] }); setModal(null) },
   })
-
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/admin/testimonials/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['admin-testimonials']); setDeleteTarget(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-testimonials'] }); setDeleteTarget(null) },
   })
 
   const EMPTY_T = { customerName: '', companyName: '', comment: '', isActive: true, sortOrder: 0 }
@@ -63,11 +179,9 @@ function TestimonialsTab() {
           <p className="text-sm text-on-surface-variant">Manage customer testimonials shown on the homepage.</p>
         </div>
         <button onClick={() => setModal(EMPTY_T)} className="btn-primary flex items-center gap-2">
-          <span className="material-symbols-outlined">add</span>
-          Add Testimonial
+          <span className="material-symbols-outlined">add</span>Add Testimonial
         </button>
       </div>
-
       <div className="space-y-4">
         {isLoading
           ? Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-24 bg-surface-container rounded-2xl animate-pulse" />)
@@ -99,18 +213,14 @@ function TestimonialsTab() {
               </div>
             ))}
       </div>
-
-      {/* Modal */}
       {modal && (
         <TestimonialModal
-          testimonial={modal.id ? modal : null}
           initial={modal}
           onClose={() => setModal(null)}
           onSave={(form) => modal.id ? updateMutation.mutate(form) : createMutation.mutate(form)}
           isSaving={createMutation.isPending || updateMutation.isPending}
         />
       )}
-
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
@@ -118,7 +228,8 @@ function TestimonialsTab() {
             <p className="text-on-surface-variant mb-6">From <strong>{deleteTarget.customerName}</strong> will be permanently removed.</p>
             <div className="flex gap-3 justify-center">
               <button onClick={() => setDeleteTarget(null)} className="px-6 py-2.5 border border-outline-variant rounded-xl font-semibold hover:bg-surface-container transition-all">Cancel</button>
-              <button onClick={() => deleteMutation.mutate(deleteTarget.id)} disabled={deleteMutation.isPending} className="px-6 py-2.5 bg-error text-white font-bold rounded-xl hover:opacity-90 disabled:opacity-50">
+              <button onClick={() => deleteMutation.mutate(deleteTarget.id)} disabled={deleteMutation.isPending}
+                className="px-6 py-2.5 bg-error text-white font-bold rounded-xl hover:opacity-90 disabled:opacity-50">
                 {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
@@ -132,7 +243,6 @@ function TestimonialsTab() {
 function TestimonialModal({ initial, onClose, onSave, isSaving }) {
   const [form, setForm] = useState(initial)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
@@ -147,7 +257,7 @@ function TestimonialModal({ initial, onClose, onSave, isSaving }) {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold text-outline uppercase tracking-widest">Company / Role</label>
-            <input value={form.companyName} onChange={set('companyName')} placeholder="Hospital Administrator, St. Jude Medical" className="input-field" />
+            <input value={form.companyName} onChange={set('companyName')} placeholder="Hospital Administrator" className="input-field" />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold text-outline uppercase tracking-widest">Comment *</label>
@@ -166,7 +276,8 @@ function TestimonialModal({ initial, onClose, onSave, isSaving }) {
         </div>
         <div className="flex justify-end gap-3 p-6 border-t border-surface-container">
           <button onClick={onClose} className="px-6 py-2.5 text-on-surface-variant font-semibold hover:bg-surface-container rounded-xl transition-all">Cancel</button>
-          <button onClick={() => onSave(form)} disabled={!form.customerName || !form.comment || isSaving} className="btn-primary flex items-center gap-2 disabled:opacity-50">
+          <button onClick={() => onSave(form)} disabled={!form.customerName || !form.comment || isSaving}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50">
             {isSaving ? <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span> : <span className="material-symbols-outlined">save</span>}
             Save
           </button>
@@ -194,12 +305,7 @@ function CompanyInfoTab() {
     orderAccuracy: '99.8%',
   })
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-
-  const handleSave = () => {
-    // In a real app this would call an API endpoint
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
+  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000) }
 
   return (
     <div>
@@ -209,20 +315,17 @@ function CompanyInfoTab() {
           <p className="text-sm text-on-surface-variant">Update the company details shown across the website.</p>
         </div>
         <button onClick={handleSave} className="btn-primary flex items-center gap-2">
-          {saved ? <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span> Saved!</> : <><span className="material-symbols-outlined">save</span> Save Changes</>}
+          {saved ? <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>Saved!</> : <><span className="material-symbols-outlined">save</span>Save Changes</>}
         </button>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Branding */}
         <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
           <h3 className="font-headline font-bold text-on-surface flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">business</span>
-            Branding
+            <span className="material-symbols-outlined text-primary">business</span>Branding
           </h3>
           {[
             { key: 'companyName', label: 'Company Name' },
-            { key: 'tagline', label: 'Hero Tagline' },
+            { key: 'tagline',     label: 'Hero Tagline' },
             { key: 'description', label: 'Short Description', textarea: true },
           ].map((f) => (
             <div key={f.key} className="space-y-1">
@@ -233,12 +336,9 @@ function CompanyInfoTab() {
             </div>
           ))}
         </div>
-
-        {/* Contact */}
         <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
           <h3 className="font-headline font-bold text-on-surface flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">contact_phone</span>
-            Contact Details
+            <span className="material-symbols-outlined text-primary">contact_phone</span>Contact Details
           </h3>
           {[
             { key: 'address',          label: 'Address' },
@@ -253,12 +353,9 @@ function CompanyInfoTab() {
             </div>
           ))}
         </div>
-
-        {/* Stats */}
         <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4 lg:col-span-2">
           <h3 className="font-headline font-bold text-on-surface flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">bar_chart</span>
-            Homepage Stats
+            <span className="material-symbols-outlined text-primary">bar_chart</span>Homepage Stats
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
@@ -281,51 +378,35 @@ function CompanyInfoTab() {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminSettings() {
-  const [activeTab, setActiveTab] = useState('company')
+  const [activeTab, setActiveTab] = useState('account')
 
   const tabs = [
-    { key: 'company',      icon: 'business',       label: 'Company Info' },
+    { key: 'account',      icon: 'manage_accounts', label: 'Account' },
+    { key: 'company',      icon: 'business',        label: 'Company Info' },
     { key: 'testimonials', icon: 'format_quote',    label: 'Testimonials' },
   ]
 
   return (
-    <div className="bg-background min-h-screen">
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-lg shadow-sm h-20 flex justify-between items-center px-8">
-        <div className="flex items-center gap-4">
-          <Link to="/admin" className="p-2 hover:bg-slate-100 rounded-full transition-colors text-primary">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </Link>
-          <div>
-            <h1 className="font-headline font-bold text-2xl tracking-tight text-primary">Content & Settings</h1>
-            <p className="text-xs text-slate-500">Manage website content and configuration</p>
-          </div>
-        </div>
-      </header>
+    <AdminLayout title="Settings" subtitle="Manage your account credentials and website content.">
+      {/* Tabs */}
+      <div className="flex gap-1 mb-8 border-b border-gray-200 overflow-x-auto">
+        {tabs.map((tab) => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === tab.key
+                ? 'text-primary border-primary'
+                : 'text-gray-500 border-transparent hover:text-primary'
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <AdminSidebar />
-
-      <main className="md:ml-72 pt-28 pb-12 px-6 md:px-10">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-surface-container">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-6 py-3 font-headline font-bold text-sm transition-all border-b-2 -mb-px ${
-                activeTab === tab.key
-                  ? 'text-primary border-primary'
-                  : 'text-on-surface-variant border-transparent hover:text-primary'
-              }`}
-            >
-              <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === 'company'      && <CompanyInfoTab />}
-        {activeTab === 'testimonials' && <TestimonialsTab />}
-      </main>
-    </div>
+      {activeTab === 'account'      && <AccountTab />}
+      {activeTab === 'company'      && <CompanyInfoTab />}
+      {activeTab === 'testimonials' && <TestimonialsTab />}
+    </AdminLayout>
   )
 }

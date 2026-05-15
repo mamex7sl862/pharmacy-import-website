@@ -24,6 +24,7 @@ import AdminSettings from './pages/AdminSettings'
 import AdminNotificationListener from './components/AdminNotificationListener'
 import RFQList from './pages/RFQList'
 import RFQDetails from './pages/RFQDetails'
+import AdminUsers from './pages/AdminUsers'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="rfqs/:id" element={<RFQDetails />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="products/new" element={<AdminProducts />} />
+              <Route path="users" element={<AdminUsers />} />
               <Route path="content" element={<AdminContent />} />
               <Route path="chat" element={<AdminChat />} />
               <Route path="messages" element={<AdminContactMessages />} />

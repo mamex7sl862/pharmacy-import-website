@@ -5,6 +5,161 @@ import { useState } from 'react'
 import api from '../lib/api'
 import useAuthStore from '../store/authStore'
 
+// ── Account Settings Modal ────────────────────────────────────────────────────
+function AccountSettingsModal({ onClose }) {
+  const { setAuth } = useAuthStore()
+  const [tab, setTab] = useState('email')
+  const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' })
+  const [passForm, setPassForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [emailMsg, setEmailMsg] = useState(null)
+  const [passMsg, setPassMsg] = useState(null)
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [passLoading, setPassLoading] = useState(false)
+
+  const handleEmailChange = async (e) => {
+    e.preventDefault()
+    setEmailLoading(true); setEmailMsg(null)
+    try {
+      const res = await api.patch('/customer/account/email', emailForm)
+      if (res.data.accessToken) {
+        setAuth(res.data.user, res.data.accessToken)
+      }
+      setEmailMsg({ type: 'success', text: `Email updated to ${emailForm.newEmail}` })
+      setEmailForm({ newEmail: '', password: '' })
+    } catch (err) {
+      const code = err?.response?.data?.error
+      setEmailMsg({ type: 'error', text:
+        code === 'WRONG_PASSWORD' ? 'Current password is incorrect.' :
+        code === 'EMAIL_EXISTS'   ? 'That email is already in use.' :
+        'Failed to update email. Please try again.'
+      })
+    } finally { setEmailLoading(false) }
+  }
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault()
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      setPassMsg({ type: 'error', text: 'New passwords do not match.' }); return
+    }
+    if (passForm.newPassword.length < 8) {
+      setPassMsg({ type: 'error', text: 'Password must be at least 8 characters.' }); return
+    }
+    setPassLoading(true); setPassMsg(null)
+    try {
+      await api.patch('/customer/account/password', {
+        currentPassword: passForm.currentPassword,
+        newPassword: passForm.newPassword,
+      })
+      setPassMsg({ type: 'success', text: 'Password updated successfully.' })
+      setPassForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      const code = err?.response?.data?.error
+      setPassMsg({ type: 'error', text:
+        code === 'WRONG_PASSWORD' ? 'Current password is incorrect.' :
+        'Failed to update password. Please try again.'
+      })
+    } finally { setPassLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="font-headline font-bold text-xl text-gray-900">Account Settings</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100">
+          {[
+            { key: 'email', label: 'Change Email', icon: 'alternate_email' },
+            { key: 'password', label: 'Change Password', icon: 'lock' },
+          ].map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold border-b-2 transition-all ${
+                tab === t.key ? 'text-primary border-primary' : 'text-gray-400 border-transparent hover:text-gray-600'
+              }`}>
+              <span className="material-symbols-outlined text-base">{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-6">
+          {tab === 'email' && (
+            <form onSubmit={handleEmailChange} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">New Email Address</label>
+                <input type="email" value={emailForm.newEmail} required
+                  onChange={e => setEmailForm(f => ({ ...f, newEmail: e.target.value }))}
+                  placeholder="new@email.com"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Current Password (to confirm)</label>
+                <input type="password" value={emailForm.password} required
+                  onChange={e => setEmailForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Enter your current password"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              {emailMsg && (
+                <p className={`text-sm px-4 py-2 rounded-lg ${emailMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {emailMsg.text}
+                </p>
+              )}
+              <button type="submit" disabled={emailLoading}
+                className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all">
+                {emailLoading
+                  ? <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span>Updating...</>
+                  : 'Update Email'}
+              </button>
+            </form>
+          )}
+
+          {tab === 'password' && (
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Current Password</label>
+                <input type="password" value={passForm.currentPassword} required
+                  onChange={e => setPassForm(f => ({ ...f, currentPassword: e.target.value }))}
+                  placeholder="Enter current password"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">New Password</label>
+                <input type="password" value={passForm.newPassword} required
+                  onChange={e => setPassForm(f => ({ ...f, newPassword: e.target.value }))}
+                  placeholder="Min. 8 characters"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Confirm New Password</label>
+                <input type="password" value={passForm.confirmPassword} required
+                  onChange={e => setPassForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                  placeholder="Repeat new password"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              {passMsg && (
+                <p className={`text-sm px-4 py-2 rounded-lg ${passMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {passMsg.text}
+                </p>
+              )}
+              <button type="submit" disabled={passLoading}
+                className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all">
+                {passLoading
+                  ? <><span className="material-symbols-outlined animate-spin text-base">progress_activity</span>Updating...</>
+                  : 'Update Password'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const STATUS_BADGE = {
   NEW:               'bg-blue-50 text-blue-700',
   UNDER_REVIEW:      'bg-yellow-50 text-yellow-700',
@@ -40,6 +195,7 @@ export default function CustomerDashboard() {
   const [decliningRfq, setDecliningRfq] = useState(null)
   const [declineReason, setDeclineReason] = useState('')
   const [confirmingDelivery, setConfirmingDelivery] = useState(null) // rfq being confirmed
+  const [showAccountSettings, setShowAccountSettings] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['customer-rfqs'],
@@ -114,10 +270,21 @@ export default function CustomerDashboard() {
 
       {/* Welcome */}
       <section className="mb-8">
-        <h1 className="font-headline font-bold text-2xl text-on-surface tracking-tight mb-1">
-          Welcome back, {user?.companyName || user?.fullName}
-        </h1>
-        <p className="text-sm text-on-surface-variant">Managing your pharmaceutical procurement with clinical precision.</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-headline font-bold text-2xl text-on-surface tracking-tight mb-1">
+              Welcome back, {user?.companyName || user?.fullName}
+            </h1>
+            <p className="text-sm text-on-surface-variant">Managing your pharmaceutical procurement with clinical precision.</p>
+          </div>
+          <button
+            onClick={() => setShowAccountSettings(true)}
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
+          >
+            <span className="material-symbols-outlined text-base">manage_accounts</span>
+            Account
+          </button>
+        </div>
       </section>
 
       {/* Stats */}
@@ -514,6 +681,11 @@ export default function CustomerDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Account Settings Modal ──────────────────────────────────────────── */}
+      {showAccountSettings && (
+        <AccountSettingsModal onClose={() => setShowAccountSettings(false)} />
       )}
     </div>
   )
